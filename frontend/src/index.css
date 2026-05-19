@@ -1,4 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Geist", "ui-sans-serif", "system-ui", "sans-serif";
+  --font-mono: "JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace";
+}
 
 /* Ajuste fino para garantir que o layout ocupe a tela toda */
 html,
@@ -8,5 +14,20 @@ body,
   padding: 0;
   width: 100%;
   min-height: 100vh;
-  background-color: #0f172a; /* Slate 900 */
+  background-color: var(--color-slate-950);
+}
+
+/* Inversão dinâmica da paleta Slate para o Tema Claro usando OKLCH nativo do Tailwind v4 */
+html.light {
+  --color-slate-950: oklch(0.984 0.003 247.858); /* antigo slate-50 */
+  --color-slate-900: oklch(0.968 0.007 247.896); /* antigo slate-100 */
+  --color-slate-800: oklch(0.929 0.013 255.508); /* antigo slate-200 */
+  --color-slate-700: oklch(0.869 0.022 252.894); /* antigo slate-300 */
+  --color-slate-600: oklch(0.704 0.04 256.788); /* antigo slate-400 */
+  --color-slate-500: oklch(0.551 0.027 264.364); /* slate-500 */
+  --color-slate-400: oklch(0.446 0.03 256.802); /* antigo slate-600 */
+  --color-slate-300: oklch(0.338 0.024 256.65); /* antigo slate-700 */
+  --color-slate-200: oklch(0.246 0.021 251.247); /* antigo slate-800 */
+  --color-slate-100: oklch(0.188 0.018 251.583); /* antigo slate-900 */
+  --color-slate-50: oklch(0.129 0.012 253.906); /* antigo slate-950 */
 }

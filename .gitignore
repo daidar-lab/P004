@@ -64,5 +64,9 @@ dist/
 *.sw?
 
 # --- Arquivos de Sistema Operacional ---
-DS_Store
+.DS_Store
 Thumbs.db
+
+# --- Arquivos de Exemplo/Rascunho (Não comitar pro repositório do Gateway) ---
+/*Service.ts
+/*Routes.ts

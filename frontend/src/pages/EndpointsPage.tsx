@@ -1,13 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Zap, Plus, Search, X, Save, ChevronDown,
   ToggleLeft, ToggleRight, Clock, RefreshCw, AlertTriangle,
 } from 'lucide-react'
-// 1. Importações de dados reais (JavaScript de runtime)
-import { MOCK_ENDPOINTS, AWS_MODELS } from '../data/mockData'
-
-// 2. Importações exclusivas de tipagem (Sumarizadas puramente para o TypeScript)
-import type { Endpoint, AwsModelId } from '../data/mockData'
+import { AWS_MODELS } from '../constants/models'
+import type { Endpoint, AwsModelId } from '../types'
 
 function TemperatureBar({ value }: { value: number }) {
   const pct = value * 100
@@ -249,10 +246,31 @@ function EditModal({ endpoint, onClose, onSave }: EditModalProps) {
 }
 
 export function EndpointsPage() {
-  const [endpoints, setEndpoints] = useState<Endpoint[]>(MOCK_ENDPOINTS)
+  const [endpoints, setEndpoints] = useState<Endpoint[]>([])
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Endpoint | null>(null)
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchEndpoints() {
+      try {
+        const response = await fetch('http://localhost:3334/v1/endpoints');
+        if (!response.ok) {
+          throw new Error('Falha ao buscar endpoints');
+        }
+        const data = await response.json();
+        setEndpoints(data);
+      } catch (err: any) {
+        setError(err.message || 'Erro desconhecido');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchEndpoints();
+  }, []);
 
   const filtered = endpoints.filter(ep => {
     const matchSearch = ep.name.toLowerCase().includes(search.toLowerCase()) || ep.slug.toLowerCase().includes(search.toLowerCase())
@@ -266,6 +284,19 @@ export function EndpointsPage() {
 
   return (
     <div className="p-6 space-y-5">
+      {/* Loading & Error States */}
+      {isLoading && (
+        <div className="text-sm text-slate-400 font-mono flex items-center justify-center p-8">
+          Carregando endpoints...
+        </div>
+      )}
+
+      {error && (
+        <div className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 p-4 rounded-md font-mono mb-4">
+          Erro: {error}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

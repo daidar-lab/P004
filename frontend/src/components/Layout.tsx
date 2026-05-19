@@ -8,7 +8,10 @@ import {
   Settings,
   LogOut,
   Bell,
+  Sun,
+  Moon,
 } from 'lucide-react'
+import { useEffect } from 'react'
 
 type Page = 'dashboard' | 'endpoints' | 'api-keys'
 
@@ -21,11 +24,24 @@ interface LayoutProps {
 const navItems = [
   { id: 'dashboard' as Page, label: 'Dashboard', icon: LayoutDashboard },
   { id: 'endpoints' as Page, label: 'Endpoints', icon: Zap },
-  { id: 'api-keys' as Page, label: 'Chaves de API', icon: KeyRound },
+  { id: 'api-keys' as Page, label: 'ss de API', icon: KeyRound },
 ]
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [isLight, setIsLight] = useState(() => {
+    return localStorage.getItem('theme') === 'light'
+  })
+
+  useEffect(() => {
+    if (isLight) {
+      document.documentElement.classList.add('light')
+      localStorage.setItem('theme', 'light')
+    } else {
+      document.documentElement.classList.remove('light')
+      localStorage.setItem('theme', 'dark')
+    }
+  }, [isLight])
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-50 font-mono overflow-hidden">
@@ -132,6 +148,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[11px] text-emerald-400 font-mono">Sistema Operacional</span>
             </div>
+            <button
+              onClick={() => setIsLight(!isLight)}
+              className="p-1.5 text-slate-600 hover:text-slate-300 transition-colors"
+              title={isLight ? "Ativar modo escuro" : "Ativar modo claro"}
+            >
+              {isLight ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
             <button className="relative p-1.5 text-slate-600 hover:text-slate-300 transition-colors">
               <Bell size={16} />
               <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />

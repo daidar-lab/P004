@@ -1,53 +1,84 @@
+import { useState, useEffect } from 'react'
 import { Activity, Zap, KeyRound, TrendingUp, ArrowUpRight, Clock, CheckCircle2, XCircle } from 'lucide-react'
-import { MOCK_ENDPOINTS, MOCK_API_KEYS } from '../data/mockData'
-
-const stats = [
-  {
-    label: 'Endpoints Ativos',
-    value: MOCK_ENDPOINTS.filter(e => e.is_active).length,
-    total: MOCK_ENDPOINTS.length,
-    icon: Zap,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/20',
-  },
-  {
-    label: 'Chaves de API',
-    value: MOCK_API_KEYS.filter(k => k.is_active).length,
-    total: MOCK_API_KEYS.length,
-    icon: KeyRound,
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/20',
-  },
-  {
-    label: 'Req. Hoje',
-    value: '12.4k',
-    icon: Activity,
-    color: 'text-violet-400',
-    bg: 'bg-violet-500/10',
-    border: 'border-violet-500/20',
-  },
-  {
-    label: 'Taxa de Sucesso',
-    value: '99.2%',
-    icon: TrendingUp,
-    color: 'text-amber-400',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/20',
-  },
-]
-
-const recentActivity = [
-  { endpoint: 'energy', status: 'ok', latency: '342ms', time: 'agora' },
-  { endpoint: 'intervention', status: 'ok', latency: '198ms', time: '12s' },
-  { endpoint: 'energy', status: 'error', latency: '—', time: '45s' },
-  { endpoint: 'report-gen', status: 'ok', latency: '1.2s', time: '1m' },
-  { endpoint: 'energy', status: 'ok', latency: '289ms', time: '2m' },
-  { endpoint: 'intervention', status: 'ok', latency: '220ms', time: '3m' },
-]
 
 export function DashboardPage() {
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchDashboard() {
+      try {
+        const response = await fetch('http://localhost:3334/v1/dashboard/stats');
+        if (!response.ok) {
+          throw new Error('Falha ao buscar estatísticas do dashboard');
+        }
+        const json = await response.json();
+        setData(json);
+      } catch (err: any) {
+        setError(err.message || 'Erro desconhecido');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchDashboard();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="p-6 text-sm text-slate-400 font-mono flex justify-center py-10">
+        Carregando painel do gateway...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 p-4 rounded-md font-mono">
+          Erro: {error}
+        </div>
+      </div>
+    );
+  }
+
+  const stats = [
+    {
+      label: 'Endpoints Ativos',
+      value: data.endpoints.active,
+      total: data.endpoints.total,
+      icon: Zap,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10',
+      border: 'border-emerald-500/20',
+    },
+    {
+      label: 'Chaves de API',
+      value: data.apiKeys.active,
+      total: data.apiKeys.total,
+      icon: KeyRound,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
+      border: 'border-blue-500/20',
+    },
+    {
+      label: 'Req. Hoje',
+      value: data.requests.today,
+      icon: Activity,
+      color: 'text-violet-400',
+      bg: 'bg-violet-500/10',
+      border: 'border-violet-500/20',
+    },
+    {
+      label: 'Taxa de Sucesso',
+      value: `${data.requests.successRate}%`,
+      icon: TrendingUp,
+      color: 'text-amber-400',
+      bg: 'bg-amber-500/10',
+      border: 'border-amber-500/20',
+    },
+  ]
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -87,10 +118,10 @@ export function DashboardPage() {
         <div className="lg:col-span-2 rounded-lg border border-slate-800/60 bg-slate-900/40">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/60">
             <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Endpoints</h2>
-            <span className="text-[11px] text-slate-500">{MOCK_ENDPOINTS.length} configurados</span>
+            <span className="text-[11px] text-slate-500">{data.endpoints.total} configurados</span>
           </div>
           <div className="divide-y divide-slate-800/40">
-            {MOCK_ENDPOINTS.map((ep) => (
+            {data.endpoints.list.map((ep: any) => (
               <div key={ep.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/20 transition-colors">
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ep.is_active ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                 <div className="flex-1 min-w-0">
@@ -116,19 +147,25 @@ export function DashboardPage() {
             <Clock size={13} className="text-slate-600" />
           </div>
           <div className="divide-y divide-slate-800/40">
-            {recentActivity.map((a, i) => (
-              <div key={i} className="flex items-center gap-2.5 px-4 py-2.5">
-                {a.status === 'ok'
-                  ? <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
-                  : <XCircle size={13} className="text-rose-500 flex-shrink-0" />
-                }
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] text-slate-300 font-mono truncate">/{a.endpoint}</p>
-                  <p className="text-[10px] text-slate-600">{a.latency}</p>
+            {data.recentActivity.length > 0 ? (
+              data.recentActivity.map((a: any, i: number) => (
+                <div key={i} className="flex items-center gap-2.5 px-4 py-2.5">
+                  {a.status === 'ok'
+                    ? <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
+                    : <XCircle size={13} className="text-rose-500 flex-shrink-0" />
+                  }
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] text-slate-300 font-mono truncate">/{a.endpoint}</p>
+                    <p className="text-[10px] text-slate-600">{a.latency}</p>
+                  </div>
+                  <span className="text-[10px] text-slate-600 flex-shrink-0">{a.time}</span>
                 </div>
-                <span className="text-[10px] text-slate-600 flex-shrink-0">{a.time}</span>
+              ))
+            ) : (
+              <div className="px-4 py-5 text-center text-[11px] text-slate-600 font-mono">
+                Nenhum log registrado ainda.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

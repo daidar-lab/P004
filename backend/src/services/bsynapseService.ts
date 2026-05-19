@@ -21,14 +21,15 @@ interface ExecutionParams {
 
 export class BSynapseService {
   public static async executeDynamicAnalysis({ slug, clientApiKeyId, requestBody }: ExecutionParams) {
-    
+
     // 1. VERIFICAÇÃO DE PERMISSÃO E RESOLUÇÃO DE METADADOS DO ENDPOINT
     const contextQuery = `
       SELECT 
         e.id AS endpoint_id,
         e.aws_model_id,
         e.temperature,
-        p.system_prompt
+        p.system_prompt,
+        p.user_prompt_template
       FROM synapse.endpoints e
       INNER JOIN synapse.api_key_permissions per ON per.endpoint_id = e.id
       INNER JOIN synapse.prompts_history p ON p.endpoint_id = e.id
@@ -46,7 +47,16 @@ export class BSynapseService {
       throw error;
     }
 
-    const { aws_model_id, temperature, system_prompt } = contextResult.rows[0];
+    const { aws_model_id, temperature, system_prompt, user_prompt_template } = contextResult.rows[0];
+
+    // Função auxiliar para injetar variáveis do JSON no template {{chave}}
+    const interpolateTemplate = (template: string, data: any): string => {
+      if (!template) return '';
+      return template.replace(/\{\{(.*?)\}\}/g, (_, key) => {
+        const val = data[key.trim()];
+        return val !== undefined ? val : `{{${key}}}`;
+      });
+    };
 
     // 2. ORQUESTRAÇÃO E MONTAGEM DO PAYLOAD CONFORME O MODELO ALVO
     let awsPayload: any;
@@ -86,14 +96,16 @@ export class BSynapseService {
           }
         ]
       };
-    } 
+    }
     // Cenário B: Integração Textual Titan (Análise de Faturas - P001)
     else if (aws_model_id.includes('titan')) {
-      // Injetamos os dados estruturados do cliente dentro do escopo do prompt
-      const stringifiedBody = JSON.stringify(requestBody, null, 2);
-      
+      // Se houver um template cadastrado, injetamos os dados. Se não, formatamos o JSON cru.
+      const finalUserText = user_prompt_template
+        ? interpolateTemplate(user_prompt_template, requestBody)
+        : `Client Data Context:\n${JSON.stringify(requestBody, null, 2)}\n\nExecute a análise estruturada e retorne os resultados.`;
+
       awsPayload = {
-        inputText: `System Instruction: ${system_prompt}\n\nClient Data Context:\n${stringifiedBody}\n\nExecute a análise estruturada e retorne os resultados.`,
+        inputText: `${system_prompt}\n\n${finalUserText}`,
         textGenerationConfig: {
           maxTokenCount: 2048,
           stopSequences: [],
@@ -101,7 +113,7 @@ export class BSynapseService {
           topP: 0.9
         }
       };
-    } 
+    }
     // Fallback de Segurança
     else {
       const error: any = new Error(`Provedor de modelo [${aws_model_id}] homologado no banco mas sem driver de parser no serviço.`);
@@ -118,7 +130,7 @@ export class BSynapseService {
     });
 
     const awsResponse = await bedrockClient.send(command);
-    
+
     // 4. NORMALIZAÇÃO DA RESPOSTA EM TEMPO DE RUNTIME
     const responseDecoder = new TextDecoder('utf-8');
     const rawResponseBody = responseDecoder.decode(awsResponse.body);

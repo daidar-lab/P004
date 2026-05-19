@@ -3,30 +3,49 @@ import { analyzeEnergyInvoice } from '../services/energyService';
 
 const energyRouter = Router();
 
-// Rota: POST http://localhost:3334/v1/analyze/energy
 energyRouter.post('/energy', async (req, res) => {
   try {
     const { faturaData, equipmentList, previousMonthData } = req.body;
 
     if (!faturaData) {
-      return res.status(400).json({ error: 'Os dados de faturaData são obrigatórios.' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Os dados de faturaData são obrigatórios.' 
+      });
     }
 
-    // Se o equipmentList vier nulo ou vazio, tratamos como array vazio
     const equipments = equipmentList || [];
-
-    // Executa o processamento do relatório pelo Bedrock
     const relatorioMarkdown = await analyzeEnergyInvoice(faturaData, equipments, previousMonthData);
 
-    // Retorna exatamente no formato textual puro que o front/gerador de PDF do P001 espera
     return res.json({
       success: true,
       report: relatorioMarkdown
     });
 
   } catch (error: any) {
-    console.error('[Erro P004 Auditoria Energética]:', error);
-    return res.status(500).json({ error: error.message || 'Erro ao processar auditoria via Bedrock.' });
+    // Log detalhado no terminal do servidor para você, Davi, saber exatamente o que houve
+    console.error(`[ERRO CRÍTICO P004 - ENERGIA] [${new Date().toISOString()}]:`, error);
+
+    // Tratamento amigável para a aplicação cliente (P001)
+    if (error.name === 'UnrecognizedClientException') {
+      return res.status(500).json({
+        success: false,
+        error: 'Erro de infraestrutura: Credenciais da AWS inválidas ou expiradas.'
+      });
+    }
+
+    if (error.name === 'ValidationException') {
+      return res.status(400).json({
+        success: false,
+        error: 'Erro de validação: O formato dos dados enviados ao Bedrock está incorreto.'
+      });
+    }
+
+    // Erro genérico caso seja outra coisa (ex: timeout)
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Falha temporária ao processar auditoria com o serviço de IA Bedrock.' 
+    });
   }
 });
 

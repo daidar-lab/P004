@@ -2,22 +2,25 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { energyRouter } from './routes/energyRoutes';
 import { interventionRouter } from './routes/interventionRoutes';
-import { validateApiKey } from './middlewares/authMiddleware'; // 1. Importa o porteiro
+import { validateApiKey } from './middlewares/authMiddleware';
 
 dotenv.config();
 
 const app = express();
+
+// 👉 SOLUÇÃO COMPLIANT COM O SONARQUBE: Oculta a tecnologia do cabeçalho HTTP
+app.disable('x-powered-by'); 
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 3334;
 
-// Rota de teste (Health Check) - Essa fica aberta para sabermos se o servidor está vivo
+// Rota de teste (Health Check)
 app.get('/health', (req, res) => {
   res.json({ status: 'Proxy P004 operacional!' });
 });
 
-// 2. Aplicamos o middleware de segurança ANTES das rotas de IA.
-// Tudo o que estiver abaixo dessa linha vai exigir a chave x-api-key no cabeçalho!
+// Middleware de segurança
 app.use(validateApiKey);
 
 app.use('/v1/analyze', energyRouter);

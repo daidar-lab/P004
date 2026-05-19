@@ -7,6 +7,7 @@ import { apiLimiter } from './middlewares/rateLimitMiddleware';
 import { analyzeRouter } from './routes/analyzeRoutes'; // 👈 Nosso novo roteador universal
 import { endpointsRouter } from './routes/endpointsRoutes'; // 👈 Roteador para administração
 import { dashboardRouter } from './routes/dashboardRoutes'; // 👈 Roteador do dashboard
+import { apiKeysRouter } from './routes/apiKeysRoutes'; // 👈 Roteador de Chaves de API
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.get('/health', (req, res) => {
 // Rotas Administrativas (Neste momento, sem a key do cliente final)
 app.use('/v1/endpoints', endpointsRouter);
 app.use('/v1/dashboard', dashboardRouter);
+app.use('/v1/apikeys', apiKeysRouter);
 
 // Middleware de segurança perimetral (Validação no Banco para rotas de IA)
 app.use(validateApiKey);

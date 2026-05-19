@@ -24,7 +24,7 @@ interface LayoutProps {
 const navItems = [
   { id: 'dashboard' as Page, label: 'Dashboard', icon: LayoutDashboard },
   { id: 'endpoints' as Page, label: 'Endpoints', icon: Zap },
-  { id: 'api-keys' as Page, label: 'ss de API', icon: KeyRound },
+  { id: 'api-keys' as Page, label: 'Chaves de API', icon: KeyRound },
 ]
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {

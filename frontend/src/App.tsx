@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { EndpointsPage } from './pages/EndpointsPage';
+import { ApiKeysPage } from './pages/ApiKeysPage';
 
 type Page = 'dashboard' | 'endpoints' | 'api-keys';
 
@@ -20,14 +21,7 @@ function App() {
     <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
       {currentPage === 'dashboard' && <DashboardPage />}
       {currentPage === 'endpoints' && <EndpointsPage />}
-      {currentPage === 'api-keys' && (
-        <div className="p-6 m-6 bg-slate-900 border border-slate-800 rounded-xl">
-          <h2 className="text-xl font-bold text-white mb-2">Chaves de API (Tokens)</h2>
-          <p className="text-slate-400 text-sm">
-            Módulo de controle perimetral e gerenciamento de permissões de chaves de acesso.
-          </p>
-        </div>
-      )}
+      {currentPage === 'api-keys' && <ApiKeysPage />}
     </Layout>
   );
 }

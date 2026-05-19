@@ -278,8 +278,59 @@ export function EndpointsPage() {
     return matchSearch && matchFilter
   })
 
-  function handleSave(updated: Endpoint) {
-    setEndpoints(eps => eps.map(e => e.id === updated.id ? updated : e))
+  async function handleSave(updated: Endpoint) {
+    try {
+      // Diferencia se é criação ou edição verificando se o ID é o UUID mockado 'novo-endpoint' (ou se ele não existe na lista).
+      // Mas para simplificar, já que geramos um UUID aleatório pro novo, vamos checar se ele já existe na lista.
+      const isNew = !endpoints.some(e => e.id === updated.id);
+
+      const url = isNew ? 'http://localhost:3334/v1/endpoints' : `http://localhost:3334/v1/endpoints/${updated.id}`;
+      const method = isNew ? 'POST' : 'PUT';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erro ao salvar endpoint');
+      }
+
+      // Se for novo e o backend gerou um ID (ou versionamento mudou), 
+      // a forma mais segura é fazer um refetch de todos os endpoints para ter o dado real do banco
+      const getRes = await fetch('http://localhost:3334/v1/endpoints');
+      const data = await getRes.json();
+      setEndpoints(data);
+
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  function handleCreateNew() {
+    const newEndpoint: Endpoint = {
+      id: crypto.randomUUID(),
+      slug: 'novo-endpoint',
+      name: 'Novo Endpoint',
+      aws_model_id: 'amazon.titan-text-express-v1',
+      temperature: 0.5,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      current_prompt: {
+        id: crypto.randomUUID(),
+        endpoint_id: '',
+        system_prompt: 'Instrução principal da IA...',
+        user_prompt_template: '',
+        version: 1,
+        is_current: true,
+        created_at: new Date().toISOString(),
+        created_by: 'system'
+      }
+    }
+    setEditing(newEndpoint)
   }
 
   return (
@@ -303,7 +354,10 @@ export function EndpointsPage() {
           <h1 className="text-base font-semibold text-slate-100">Endpoints & Prompts</h1>
           <p className="text-xs text-slate-500 mt-0.5">{endpoints.filter(e => e.is_active).length} de {endpoints.length} ativos</p>
         </div>
-        <button className="flex items-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-md transition-all">
+        <button 
+          onClick={handleCreateNew}
+          className="flex items-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-md transition-all"
+        >
           <Plus size={14} /> Novo Endpoint
         </button>
       </div>

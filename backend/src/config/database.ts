@@ -19,4 +19,5 @@ pool.on('error', (err) => {
 
 export const db = {
   query: (text: string, params?: any[]) => pool.query(text, params),
+  connect: () => pool.connect(),
 };

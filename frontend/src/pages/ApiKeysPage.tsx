@@ -82,7 +82,7 @@ export function ApiKeysPage() {
             <KeyRound size={18} className="text-emerald-400" />
             Chaves de API (Tokens)
           </h1>
-          <p className="text-xs text-slate-500 mt-1">Gerencie os tokens de acesso para os aplicativos clientes (P001, P007).</p>
+          <p className="text-xs text-slate-500 mt-1">Gerencie os tokens de acesso para os aplicativos clientes. </p>
         </div>
         <button 
           onClick={() => setIsCreating(true)}

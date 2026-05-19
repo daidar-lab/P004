@@ -1,45 +1,50 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import './config/database'; // Garante a inicialização do Pool do Postgres
+
+import './config/database';
+
 import { validateApiKey } from './middlewares/authMiddleware';
-import { apiLimiter } from './middlewares/rateLimitMiddleware';
-import { analyzeRouter } from './routes/analyzeRoutes'; // 👈 Nosso novo roteador universal
-import { endpointsRouter } from './routes/endpointsRoutes'; // 👈 Roteador para administração
-import { dashboardRouter } from './routes/dashboardRoutes'; // 👈 Roteador do dashboard
-import { apiKeysRouter } from './routes/apiKeysRoutes'; // 👈 Roteador de Chaves de API
+import { analyzeRouter } from './routes/analyzeRoutes';
+import { apiKeysRouter } from './routes/apiKeysRoutes';
+import { endpointsRouter } from './routes/endpointsRoutes';
+import { dashboardRouter } from './routes/dashboardRoutes';
 
 dotenv.config();
 
 const app = express();
 
-// SOLUÇÃO COMPLIANT COM O SONARQUBE: Oculta a tecnologia do cabeçalho HTTP
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
+}));
+
 app.disable('x-powered-by');
-
-app.use(cors());
 app.use(express.json());
-
-// Aplica limitador de requisições
-app.use(apiLimiter);
 
 const PORT = process.env.PORT || 3334;
 
-// Rota de teste (Health Check)
+// ✅ Health Check
 app.get('/health', (req, res) => {
   res.json({ status: 'B/Synapse Engine operacional!' });
 });
 
-// Rotas Administrativas (Neste momento, sem a key do cliente final)
+
+// ✅ ROTAS PÚBLICAS (SEM API KEY)
+app.use('/v1/apikeys', apiKeysRouter);
 app.use('/v1/endpoints', endpointsRouter);
 app.use('/v1/dashboard', dashboardRouter);
-app.use('/v1/apikeys', apiKeysRouter);
 
-// Middleware de segurança perimetral (Validação no Banco para rotas de IA)
+
+// 🔐 MIDDLEWARE DE SEGURANÇA (SÓ DAQUI PRA BAIXO)
 app.use(validateApiKey);
 
-// Plugamos o roteador dinâmico na base da API
+
+// ✅ ROTAS PROTEGIDAS (PRECISAM DE API KEY)
 app.use('/v1/analyze', analyzeRouter);
 
+
 app.listen(PORT, () => {
-  console.log(`[B/SYNAPSE] Servidor rodando dinamicamente na porta ${PORT}`);
+  console.log(`[B/SYNAPSE] Servidor rodando na porta ${PORT}`);
 });

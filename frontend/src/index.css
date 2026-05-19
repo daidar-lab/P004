@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Ajuste fino para garantir que o layout ocupe a tela toda */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0f172a; /* Slate 900 */
+}

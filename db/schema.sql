@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS synapse.api_keys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_name VARCHAR(100) NOT NULL,
     api_key VARCHAR(255) UNIQUE NOT NULL,
+    masked_key VARCHAR(100) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP WITH TIME ZONE
@@ -52,7 +53,19 @@ CREATE TABLE IF NOT EXISTS synapse.api_key_permissions (
         REFERENCES synapse.endpoints(id) ON DELETE CASCADE
 );
 
--- 5. Índices de Performance no Schema Dedicado
+-- 5. Tabela de Controle de Usuários e Perfis (Dashboard & RBAC)
+CREATE TABLE IF NOT EXISTS synapse.users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'user')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Índices de Performance no Schema Dedicado
 CREATE INDEX IF NOT EXISTS idx_endpoints_slug ON synapse.endpoints(slug);
 CREATE INDEX IF NOT EXISTS idx_prompts_current ON synapse.prompts_history(endpoint_id) WHERE is_current = TRUE;
 CREATE INDEX IF NOT EXISTS idx_api_keys_value ON synapse.api_keys(api_key) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_users_username ON synapse.users(username);

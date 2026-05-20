@@ -14,7 +14,7 @@ type CreateApiKeyBody = {
 apiKeysRouter.get('/', async (req: Request, res: Response) => {
   try {
     const result = await db.query(`
-      SELECT id, client_name, api_key, is_active, created_at, expires_at
+      SELECT id, client_name, masked_key AS api_key, is_active, created_at, expires_at
       FROM synapse.api_keys
       ORDER BY created_at DESC;
     `);
@@ -42,15 +42,17 @@ apiKeysRouter.post('/', async (req: Request, res: Response) => {
     // 🔐 GERAÇÃO DA CHAVE
     const randomHex = crypto.randomBytes(16).toString('hex');
     const newApiKey = `syn_live_${randomHex}`;
+    const hashedKey = crypto.createHash('sha256').update(newApiKey).digest('hex');
+    const maskedKey = `syn_live_••••••••${randomHex.slice(-4)}`;
 
-    // ✅ INSERE API KEY
+    // ✅ INSERE API KEY (salva o hash em api_key e o valor mascarado em masked_key)
     const result = await db.query(
       `
-      INSERT INTO synapse.api_keys (client_name, api_key, is_active)
-      VALUES ($1, $2, TRUE)
-      RETURNING id, client_name, api_key, is_active, created_at, expires_at
+      INSERT INTO synapse.api_keys (client_name, api_key, masked_key, is_active)
+      VALUES ($1, $2, $3, TRUE)
+      RETURNING id, client_name, is_active, created_at, expires_at
       `,
-      [client_name, newApiKey]
+      [client_name, hashedKey, maskedKey]
     );
 
     const createdKey = result.rows[0];
@@ -75,8 +77,15 @@ apiKeysRouter.post('/', async (req: Request, res: Response) => {
       )
     );
 
-    // ✅ RETORNA A CHAVE (IMPORTANTE: só aparece aqui)
-    return res.status(201).json(createdKey);
+    // ✅ RETORNA A CHAVE (IMPORTANTE: só aparece aqui em formato legível para cópia única)
+    return res.status(201).json({
+      id: createdKey.id,
+      client_name: createdKey.client_name,
+      api_key: newApiKey,
+      is_active: createdKey.is_active,
+      created_at: createdKey.created_at,
+      expires_at: createdKey.expires_at
+    });
 
   } catch (error) {
     console.error('[ERRO] POST /v1/apikeys:', error);

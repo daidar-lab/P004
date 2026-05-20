@@ -10,9 +10,9 @@ VALUES
 ((SELECT id FROM synapse.endpoints WHERE slug = 'intervention'), 'Você é uma IA especialista em engenharia de segurança do trabalho e análise visual de riscos...', 1, TRUE);
 
 -- 3. Cadastrar os tokens temporários de teste do seu .env
-INSERT INTO synapse.api_keys (client_name, api_key) VALUES
-('P001 - Audit Energy', 'audit_energy_secret_token_123'),
-('P007 - Comunicado de Intervenção', 'comunicado_intervencao_secret_token_789');
+INSERT INTO synapse.api_keys (client_name, api_key, masked_key) VALUES
+('P001 - Audit Energy', '5a2a9621934ccbf9fa745448b36468872bb41dd52349a8cf8d9f0ee0081ec554', 'audi_••••_123'),
+('P007 - Comunicado de Intervenção', 'ceebf78f141761dbbb5bd85bcfde1b999dca1ded12a86a6554ed541bc82fda88', 'comu_••••_789');
 
 -- 4. Criar os vínculos de permissões na tabela intermediária
 INSERT INTO synapse.api_key_permissions (api_key_id, endpoint_id) VALUES

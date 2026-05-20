@@ -5,10 +5,14 @@ import cors from 'cors';
 import './config/database';
 
 import { validateApiKey } from './middlewares/authMiddleware';
+import { userAuth } from './middlewares/userAuthMiddleware';
+import { authRouter } from './routes/authRoutes';
+import { usersRouter } from './routes/usersRoutes';
 import { analyzeRouter } from './routes/analyzeRoutes';
 import { apiKeysRouter } from './routes/apiKeysRoutes';
 import { endpointsRouter } from './routes/endpointsRoutes';
 import { dashboardRouter } from './routes/dashboardRoutes';
+import { metricsRouter } from './routes/metricsRoutes';
 
 dotenv.config();
 
@@ -31,17 +35,24 @@ app.get('/health', (req, res) => {
 });
 
 
-// ✅ ROTAS PÚBLICAS (SEM API KEY)
-app.use('/v1/apikeys', apiKeysRouter);
-app.use('/v1/endpoints', endpointsRouter);
-app.use('/v1/dashboard', dashboardRouter);
+// ✅ ROTA DE AUTENTICAÇÃO DE USUÁRIOS (LOGIN & PERFIL)
+app.use('/v1/auth', authRouter);
+
+// ✅ ROTA DE GERENCIAMENTO DE USUÁRIOS (ADMIN ONLY)
+app.use('/v1/users', usersRouter);
+
+// ✅ ROTAS DO PAINEL / DASHBOARD (PROTEGIDAS POR TOKEN DE USUÁRIO)
+app.use('/v1/apikeys', userAuth, apiKeysRouter);
+app.use('/v1/endpoints', userAuth, endpointsRouter);
+app.use('/v1/dashboard', userAuth, dashboardRouter);
+app.use('/v1/metrics', userAuth, metricsRouter);
 
 
-// 🔐 MIDDLEWARE DE SEGURANÇA (SÓ DAQUI PRA BAIXO)
+// 🔐 MIDDLEWARE DE SEGURANÇA PARA API CLIENT (SÓ DAQUI PRA BAIXO)
 app.use(validateApiKey);
 
 
-// ✅ ROTAS PROTEGIDAS (PRECISAM DE API KEY)
+// ✅ ROTAS PROTEGIDAS PARA INTEGRAÇÃO EXTERNA (PRECISAM DE API KEY)
 app.use('/v1/analyze', analyzeRouter);
 
 

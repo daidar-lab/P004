@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../config/database';
+import crypto from 'crypto';
 
 // Estendemos a interface do Express para poder anexar informações personalizadas no objeto 'req'
 interface AuthenticatedRequest extends Request {
@@ -22,6 +23,9 @@ export const validateApiKey = async (req: AuthenticatedRequest, res: Response, n
       });
     }
 
+    const keyString = Array.isArray(clientApiKey) ? clientApiKey[0] : clientApiKey;
+    const hashedKey = crypto.createHash('sha256').update(keyString).digest('hex');
+
     // Consulta banco de dados verificando integridade, status ativo e validade temporal
     const queryText = `
       SELECT id, client_name, api_key 
@@ -31,7 +35,7 @@ export const validateApiKey = async (req: AuthenticatedRequest, res: Response, n
         AND (expires_at IS NULL OR expires_at > NOW());
     `;
 
-    const result = await db.query(queryText, [clientApiKey]);
+    const result = await db.query(queryText, [hashedKey]);
 
     // Se o banco retornar zero linhas, a chave informada não é válida ou está inativa
     if (result.rows.length === 0) {

@@ -13,12 +13,14 @@ import {
 } from 'lucide-react'
 import { useEffect } from 'react'
 
-type Page = 'dashboard' | 'endpoints' | 'api-keys'
+type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users'
 
 interface LayoutProps {
   children: React.ReactNode
   currentPage: Page
   onNavigate: (page: Page) => void
+  user: { username: string; name: string; role: 'admin' | 'user' }
+  onLogout: () => void
 }
 
 const navItems = [
@@ -27,11 +29,12 @@ const navItems = [
   { id: 'api-keys' as Page, label: 'Chaves de API', icon: KeyRound },
 ]
 
-export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const [collapsed, setCollapsed] = useState(false)
+export function Layout({ children, currentPage, onNavigate, user, onLogout }: LayoutProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const [isLight, setIsLight] = useState(() => {
-    return localStorage.getItem('theme') === 'light'
-  })
+    return localStorage.getItem('theme') === 'light';
+  });
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     if (isLight) {
@@ -55,22 +58,29 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 h-14 border-b border-slate-800/60">
-          <div className="flex-shrink-0 w-7 h-7 rounded-md bg-emerald-500 flex items-center justify-center">
-            <Activity size={14} className="text-slate-950" strokeWidth={2.5} />
+          <div className="flex-shrink-0 flex items-center justify-center">
+            <img src="/favicon.svg" className="w-7 h-7" />
           </div>
+
           {!collapsed && (
             <div className="flex flex-col leading-none">
-              <span className="text-xs font-bold tracking-widest text-slate-50 uppercase">B/Synapse</span>
-              <span className="text-[10px] text-slate-500 tracking-wider">AI Gateway</span>
+              <span className="text-xs font-bold tracking-widest text-slate-50 uppercase">
+                B/Synapse
+              </span>
+              <span className="text-[10px] text-slate-500 tracking-wider">
+                AI Gateway
+              </span>
             </div>
           )}
+
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="ml-auto text-slate-600 hover:text-slate-400 transition-colors"
           >
             <ChevronRight
               size={14}
-              className={`transition-transform duration-300 ${collapsed ? '' : 'rotate-180'}`}
+              className={`transition-transform duration-300 ${collapsed ? '' : 'rotate-180'
+                }`}
             />
           </button>
         </div>
@@ -115,16 +125,21 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
         {/* Footer */}
         <div className="px-2 py-3 border-t border-slate-800/60 space-y-0.5">
-          <button
-            className="w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm text-slate-600 hover:text-slate-400 hover:bg-slate-900 transition-all"
-            title={collapsed ? 'Configurações' : undefined}
-          >
-            <Settings size={15} className="flex-shrink-0" />
-            {!collapsed && <span>Configurações</span>}
-          </button>
+          {/* Configurações - only admin */}
+          {user.role === 'admin' && (
+            <button
+              className="w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm text-slate-600 hover:text-slate-400 hover:bg-slate-900 transition-all"
+              title={collapsed ? 'Configurações' : undefined}
+              onClick={() => onNavigate('users')}
+            >
+              <Settings size={15} className="flex-shrink-0" />
+              {!collapsed && <span>Configurações</span>}
+            </button>
+          )}
           <button
             className="w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm text-slate-600 hover:text-rose-400 hover:bg-slate-900 transition-all"
             title={collapsed ? 'Sair' : undefined}
+            onClick={onLogout}
           >
             <LogOut size={15} className="flex-shrink-0" />
             {!collapsed && <span>Sair</span>}
@@ -159,8 +174,35 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <Bell size={16} />
               <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
             </button>
-            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[11px] text-slate-300">
-              AD
+            {/* Avatar and dropdown */}
+            <div className="relative" onBlur={e => setShowDropdown(false)}>
+              <button
+                className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[11px] text-slate-300"
+                onClick={() => setShowDropdown(!showDropdown)}
+                title="Perfil"
+              >
+                {user.name.split(' ')[0][0]}{user.name.split(' ')[1] ? user.name.split(' ')[1][0] : ''}
+              </button>
+              {showDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-600 rounded-md shadow-lg z-20">
+                  <div className="p-3 text-sm text-slate-200 border-b border-slate-600">
+                    <p className="font-medium">{user.name}</p>
+                    <p className="text-xs text-slate-400">@{user.username}</p>
+                  </div>
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700"
+                    onClick={() => alert('Change password modal not implemented')}
+                  >
+                    Alterar senha
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs text-rose-400 hover:bg-slate-700"
+                    onClick={onLogout}
+                  >
+                    Sair
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

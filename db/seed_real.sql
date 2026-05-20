@@ -67,8 +67,8 @@ FROM synapse.endpoints WHERE slug = 'energy';
 
 -- 3. Criação de uma API Key genérica para uso dos aplicativos clientes
 DELETE FROM synapse.api_keys WHERE client_name = 'App Cliente Local';
-INSERT INTO synapse.api_keys (client_name, api_key, is_active)
-VALUES ('App Cliente Local', 'syn_live_demo_1234567890abcdef', TRUE);
+INSERT INTO synapse.api_keys (client_name, api_key, masked_key, is_active)
+VALUES ('App Cliente Local', '3df40cfa0afe79a478ecbd431d9b8767ba581dac90678dba2164302e9c5d9f1d', 'syn_live_••••••••cdef', TRUE);
 
 -- 4. Criação do vínculo (Permissões) para essa Key poder acessar ambos endpoints
 INSERT INTO synapse.api_key_permissions (api_key_id, endpoint_id)

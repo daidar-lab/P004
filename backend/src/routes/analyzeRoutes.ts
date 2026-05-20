@@ -14,7 +14,7 @@ interface AuthenticatedRequest extends Request {
 
 // 💥 ROTA UNIVERSAL: O ":slug" captura qualquer endpoint dinamicamente
 analyzeRouter.post('/:slug', async (req: AuthenticatedRequest, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const clientApiKeyId = req.apiKeyInfo?.id;
 
   try {

@@ -53,8 +53,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
         <div className="flex justify-center items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <Activity size={20} className="text-slate-950" strokeWidth={2.5} />
+          <div className="w-12 h-12 flex items-center justify-center">
+            <img src="/favicon.svg" alt="B/Synapse Logo" className="w-full h-full object-contain" />
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-lg font-bold tracking-widest text-slate-50 uppercase">B/Synapse</span>

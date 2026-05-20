@@ -95,17 +95,35 @@ export class BSynapseService {
       const interpolateTemplate = (template: string, data: Record<string, any>): string => {
         if (!template) return '';
 
-        // Altere a linha 98 para:
-        return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
-          const safeKey = key.trim();
+        let result = template;
+        let startIndex = result.indexOf('{{');
 
-          if (!Object.hasOwn(data, safeKey)) {
-            return `{{${safeKey}}}`;
+        while (startIndex !== -1) {
+          const endIndex = result.indexOf('}}', startIndex);
+
+          if (endIndex === -1) break;
+
+          // Extrai o que está dentro de {{ }}
+          const rawKey = result.substring(startIndex + 2, endIndex);
+          const safeKey = rawKey.trim();
+
+          // Aplica a exata mesma lógica de validação que você enviou
+          let replacement = `{{${safeKey}}}`;
+          if (Object.hasOwn(data, safeKey)) {
+            const val = data[safeKey];
+            if (val !== undefined) {
+              replacement = String(val);
+            }
           }
 
-          const val = data[safeKey];
-          return val !== undefined ? val : `{{${safeKey}}}`;
-        });
+          // Substitui no texto
+          result = result.substring(0, startIndex) + replacement + result.substring(endIndex + 2);
+
+          // Avança para a próxima tag
+          startIndex = result.indexOf('{{', startIndex + replacement.length);
+        }
+
+        return result;
       };
 
       // 2. ORQUESTRAÇÃO E MONTAGEM DO PAYLOAD CONFORME O MODELO ALVO

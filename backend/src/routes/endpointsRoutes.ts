@@ -36,7 +36,7 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
         slug: row.slug,
         name: row.name,
         aws_model_id: row.aws_model_id,
-        temperature: parseFloat(row.temperature), // Converter NUMERIC para number
+        temperature: Number.parseFloat(row.temperature), // Converter NUMERIC para number
         is_active: row.is_active,
         created_at: row.created_at,
         updated_at: row.updated_at,
@@ -117,7 +117,7 @@ endpointsRouter.put('/:id', async (req: Request, res: Response) => {
     if (current_prompt) {
       // Buscar o prompt atual
       const currentRes = await client.query(
-        'SELECT system_prompt, user_prompt_template, version FROM synapse.prompts_history WHERE endpoint_id = $1 AND is_current = TRUE', 
+        'SELECT system_prompt, user_prompt_template, version FROM synapse.prompts_history WHERE endpoint_id = $1 AND is_current = TRUE',
         [id]
       );
 
@@ -127,11 +127,11 @@ endpointsRouter.put('/:id', async (req: Request, res: Response) => {
       if (currentRes.rows.length > 0) {
         const current = currentRes.rows[0];
         nextVersion = current.version + 1;
-        
+
         // Verifica se o texto mudou de fato
         const oldUserTpl = current.user_prompt_template || '';
         const newUserTpl = current_prompt.user_prompt_template || '';
-        
+
         if (current.system_prompt === current_prompt.system_prompt && oldUserTpl === newUserTpl) {
           needsNewVersion = false;
         }
@@ -140,7 +140,7 @@ endpointsRouter.put('/:id', async (req: Request, res: Response) => {
       if (needsNewVersion) {
         // Desativa o atual
         await client.query('UPDATE synapse.prompts_history SET is_current = FALSE WHERE endpoint_id = $1 AND is_current = TRUE', [id]);
-        
+
         // Insere a versão nova
         await client.query(`
           INSERT INTO synapse.prompts_history (endpoint_id, system_prompt, user_prompt_template, version, is_current)

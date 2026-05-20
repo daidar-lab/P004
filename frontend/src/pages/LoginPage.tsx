@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Activity, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface LoginPageProps {
   onLoginSuccess: (token: string, user: { id: string; name: string; username: string; role: 'admin' | 'user' }) => void;
 }
 
-export function LoginPage({ onLoginSuccess }: LoginPageProps) {
+// Altere para:
+export function LoginPage({ onLoginSuccess }: Readonly<LoginPageProps>) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../config/database';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 // Estendemos a interface do Express para poder anexar informações personalizadas no objeto 'req'
 interface AuthenticatedRequest extends Request {
@@ -17,9 +17,9 @@ export const validateApiKey = async (req: AuthenticatedRequest, res: Response, n
     const clientApiKey = req.headers['x-api-key'];
 
     if (!clientApiKey) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: 'Acesso negado. Chave de API (x-api-key) não fornecida no cabeçalho.' 
+        error: 'Acesso negado. Chave de API (x-api-key) não fornecida no cabeçalho.'
       });
     }
 
@@ -39,9 +39,9 @@ export const validateApiKey = async (req: AuthenticatedRequest, res: Response, n
 
     // Se o banco retornar zero linhas, a chave informada não é válida ou está inativa
     if (result.rows.length === 0) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: 'Acesso negado. Chave de API inválida ou revogada.' 
+        error: 'Acesso negado. Chave de API inválida ou revogada.'
       });
     }
 

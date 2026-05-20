@@ -9,7 +9,7 @@ function getRelativeTime(date: Date): string {
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHr = Math.floor(diffMin / 60);
-  
+
   if (diffSec < 60 || diffMs < 0) return 'Agora mesmo';
   if (diffMin < 60) return `${diffMin}m atrás`;
   if (diffHr < 24) return `${diffHr}h atrás`;
@@ -49,10 +49,10 @@ dashboardRouter.get('/stats', async (req: Request, res: Response) => {
       WHERE created_at >= CURRENT_DATE;
     `;
     const requestsResult = await db.query(requestsQuery);
-    const todayRequests = parseInt(requestsResult.rows[0]?.total_today || '0', 10);
-    const successRequests = parseInt(requestsResult.rows[0]?.success_today || '0', 10);
-    const successRate = todayRequests > 0 
-      ? Math.round((successRequests / todayRequests) * 100) 
+    const todayRequests = Number.parseInt(requestsResult.rows[0]?.total_today || '0', 10);
+    const successRequests = Number.parseInt(requestsResult.rows[0]?.success_today || '0', 10);
+    const successRate = todayRequests > 0
+      ? Math.round((successRequests / todayRequests) * 100)
       : 100;
 
     // 4. Buscar últimas 10 atividades (logs de requisição recentes)
@@ -69,8 +69,8 @@ dashboardRouter.get('/stats', async (req: Request, res: Response) => {
     const activityResult = await db.query(activityQuery);
     const recentActivity = activityResult.rows.map(row => {
       const isOk = row.status_code >= 200 && row.status_code < 400;
-      const latency = row.latency_ms < 1000 
-        ? `${row.latency_ms}ms` 
+      const latency = row.latency_ms < 1000
+        ? `${row.latency_ms}ms`
         : `${(row.latency_ms / 1000).toFixed(1)}s`;
 
       return {
@@ -87,7 +87,7 @@ dashboardRouter.get('/stats', async (req: Request, res: Response) => {
         total: totalEndpoints,
         list: endpointsList.map(ep => ({
           ...ep,
-          temperature: parseFloat(ep.temperature)
+          temperature: Number.parseFloat(ep.temperature)
         }))
       },
       apiKeys: {

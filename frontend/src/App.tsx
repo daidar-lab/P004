@@ -8,11 +8,11 @@ import { LoginPage } from './pages/LoginPage';
 import { Activity } from 'lucide-react';
 
 // Monkey patch global fetch para injetar o JWT automaticamente
-const originalFetch = window.fetch;
-window.fetch = async (input, init) => {
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
   const token = localStorage.getItem('token');
   const isBackendUrl = typeof input === 'string' && input.includes('localhost:3334');
-  
+
   let newInit = init || {};
   if (token && isBackendUrl) {
     const headers = new Headers(newInit.headers || {});
@@ -24,16 +24,16 @@ window.fetch = async (input, init) => {
       headers
     };
   }
-  
+
   const response = await originalFetch(input, newInit);
-  
+
   // Trata expiração do token (401) redirecionando para login
   if (response.status === 401 && typeof input === 'string' && !input.includes('/auth/login') && !input.includes('/health')) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.reload();
+    globalThis.location.reload();
   }
-  
+
   return response;
 };
 
@@ -93,7 +93,7 @@ function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   if (checkingAuth) {
@@ -115,10 +115,10 @@ function App() {
   }
 
   return (
-    <Layout 
-      currentPage={currentPage} 
-      onNavigate={setCurrentPage} 
-      user={user} 
+    <Layout
+      currentPage={currentPage}
+      onNavigate={setCurrentPage}
+      user={user}
       onLogout={handleLogout}
     >
       {currentPage === 'dashboard' && <DashboardPage />}

@@ -19,13 +19,13 @@ metricsRouter.get('/summary', async (req: Request, res: Response) => {
     const result = await db.query(metricsQuery);
     const row = result.rows[0];
 
-    const todayRequests = parseInt(row.total_today || '0', 10);
-    const successToday = parseInt(row.success_today || '0', 10);
-    const successRate = todayRequests > 0 
-      ? parseFloat(((successToday / todayRequests) * 100).toFixed(2))
+    const todayRequests = Number.parseInt(row.total_today || '0', 10);
+    const successToday = Number.parseInt(row.success_today || '0', 10);
+    const successRate = todayRequests > 0
+      ? Number.parseFloat(((successToday / todayRequests) * 100).toFixed(2))
       : 100.0;
-    const avgLatency = Math.round(parseFloat(row.avg_latency_today || '0'));
-    const totalTokens = parseInt(row.total_tokens_today || '0', 10);
+    const avgLatency = Math.round(Number.parseFloat(row.avg_latency_today || '0'));
+    const totalTokens = Number.parseInt(row.total_tokens_today || '0', 10);
 
     return res.status(200).json({
       success: true,
@@ -36,9 +36,9 @@ metricsRouter.get('/summary', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('[ERRO NA ROTA /v1/metrics/summary]:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Erro interno ao computar resumo de métricas' 
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno ao computar resumo de métricas'
     });
   }
 });

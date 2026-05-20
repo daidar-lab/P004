@@ -92,11 +92,18 @@ export class BSynapseService {
       awsModelId = aws_model_id;
 
       // Função auxiliar para injetar variáveis do JSON no template {{chave}}
-      const interpolateTemplate = (template: string, data: any): string => {
+      const interpolateTemplate = (template: string, data: Record<string, any>): string => {
         if (!template) return '';
-        return template.replace(/\{\{(.*?)\}\}/g, (_, key) => {
-          const val = data[key.trim()];
-          return val !== undefined ? val : `{{${key}}}`;
+
+        return template.replace(/\{\{\s*([^{}]+)\s*\}\}/g, (_, key) => {
+          const safeKey = key.trim();
+
+          if (!Object.prototype.hasOwnProperty.call(data, safeKey)) {
+            return `{{${safeKey}}}`;
+          }
+
+          const val = data[safeKey];
+          return val !== undefined ? val : `{{${safeKey}}}`;
         });
       };
 
@@ -116,7 +123,7 @@ export class BSynapseService {
         awsPayload = {
           anthropic_version: "bedrock-2023-05-31",
           max_tokens: 2000,
-          temperature: parseFloat(temperature),
+          temperature: Number.parseFloat(temperature),
           system: system_prompt,
           messages: [
             {
@@ -151,7 +158,7 @@ export class BSynapseService {
           textGenerationConfig: {
             maxTokenCount: 2048,
             stopSequences: [],
-            temperature: parseFloat(temperature),
+            temperature: Number.parseFloat(temperature),
             topP: 0.9
           }
         };

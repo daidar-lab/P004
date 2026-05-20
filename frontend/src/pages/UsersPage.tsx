@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Shield, User, Lock, Edit2, Trash2, ShieldAlert, Check } from 'lucide-react';
+import { Users, Plus, Shield, User, Edit2, Trash2, ShieldAlert } from 'lucide-react';
 import type { User as UserType } from '../App';
 
 interface UsersPageProps {
   currentUser: UserType;
 }
 
-export function UsersPage({ currentUser }: UsersPageProps) {
+export function UsersPage({ currentUser }: Readonly<UsersPageProps>) {
   const [users, setUsers] = useState<UserType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +14,7 @@ export function UsersPage({ currentUser }: UsersPageProps) {
   // Estados de criação e edição
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
-  
+
   // Campos do formulário
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
@@ -64,12 +64,12 @@ export function UsersPage({ currentUser }: UsersPageProps) {
     }
 
     try {
-      const url = editingUser 
-        ? `http://localhost:3334/v1/users/${editingUser.id}` 
+      const url = editingUser
+        ? `http://localhost:3334/v1/users/${editingUser.id}`
         : 'http://localhost:3334/v1/users';
-      
+
       const method = editingUser ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -135,7 +135,7 @@ export function UsersPage({ currentUser }: UsersPageProps) {
           </h1>
           <p className="text-xs text-slate-500 mt-1">Gerencie os usuários do dashboard e configure suas permissões.</p>
         </div>
-        <button 
+        <button
           onClick={openCreateForm}
           className="flex items-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-md transition-all cursor-pointer"
         >
@@ -155,7 +155,7 @@ export function UsersPage({ currentUser }: UsersPageProps) {
           <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400">
             {editingUser ? 'Editar Usuário' : 'Novo Cadastro de Usuário'}
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[11px] text-slate-400 uppercase tracking-wider">Nome Completo</label>
@@ -207,14 +207,14 @@ export function UsersPage({ currentUser }: UsersPageProps) {
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => { setIsFormOpen(false); setEditingUser(null); }}
               className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
             >
               Cancelar
             </button>
-            <button 
+            <button
               type="submit"
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-md border border-slate-700 transition-all cursor-pointer"
             >
@@ -239,8 +239,8 @@ export function UsersPage({ currentUser }: UsersPageProps) {
           {users.map(u => {
             const isMe = u.id === currentUser.id;
             return (
-              <div 
-                key={u.id} 
+              <div
+                key={u.id}
                 className="flex items-center justify-between p-4 rounded-lg border border-slate-800/80 bg-slate-900/60 hover:border-slate-700 transition-all"
               >
                 <div className="flex items-center gap-4">
@@ -286,11 +286,10 @@ export function UsersPage({ currentUser }: UsersPageProps) {
                     <button
                       onClick={() => handleDelete(u.id)}
                       disabled={isMe}
-                      className={`p-1.5 rounded transition-colors ${
-                        isMe 
-                          ? 'text-slate-800 cursor-not-allowed' 
+                      className={`p-1.5 rounded transition-colors ${isMe
+                          ? 'text-slate-800 cursor-not-allowed'
                           : 'text-slate-500 hover:text-rose-400 hover:bg-slate-800 cursor-pointer'
-                      }`}
+                        }`}
                       title={isMe ? 'Não é possível excluir seu próprio usuário' : 'Excluir usuário'}
                     >
                       <Trash2 size={14} />

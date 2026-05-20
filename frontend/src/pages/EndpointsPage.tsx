@@ -133,12 +133,11 @@ function EditModal({ endpoint, onClose, onSave }: EditModalProps) {
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">Temperatura</label>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                  form.temperature <= 0.3 ? 'bg-blue-500/10 text-blue-400'
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${form.temperature <= 0.3 ? 'bg-blue-500/10 text-blue-400'
                   : form.temperature <= 0.6 ? 'bg-emerald-500/10 text-emerald-400'
-                  : form.temperature <= 0.8 ? 'bg-amber-500/10 text-amber-400'
-                  : 'bg-rose-500/10 text-rose-400'
-                }`}>
+                    : form.temperature <= 0.8 ? 'bg-amber-500/10 text-amber-400'
+                      : 'bg-rose-500/10 text-rose-400'
+                  }`}>
                   {form.temperature <= 0.3 ? 'Determinístico' : form.temperature <= 0.6 ? 'Balanceado' : form.temperature <= 0.8 ? 'Criativo' : 'Aleatório'}
                 </span>
                 <span className="text-sm font-mono text-slate-200 w-8 text-right">{form.temperature.toFixed(2)}</span>
@@ -150,7 +149,7 @@ function EditModal({ endpoint, onClose, onSave }: EditModalProps) {
               max="1"
               step="0.01"
               value={form.temperature}
-              onChange={e => update('temperature', parseFloat(e.target.value))}
+              onChange={e => update('temperature', Number.parseFloat(e.target.value))}
               className="w-full h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer
                 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
                 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-400
@@ -173,11 +172,10 @@ function EditModal({ endpoint, onClose, onSave }: EditModalProps) {
             </div>
             <button
               onClick={() => update('is_active', !form.is_active)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono border transition-all ${
-                form.is_active
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                  : 'bg-slate-800 border-slate-700 text-slate-500'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono border transition-all ${form.is_active
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : 'bg-slate-800 border-slate-700 text-slate-500'
+                }`}
             >
               {form.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
               {form.is_active ? 'Ativo' : 'Inativo'}
@@ -354,7 +352,7 @@ export function EndpointsPage() {
           <h1 className="text-base font-semibold text-slate-100">Endpoints & Prompts</h1>
           <p className="text-xs text-slate-500 mt-0.5">{endpoints.filter(e => e.is_active).length} de {endpoints.length} ativos</p>
         </div>
-        <button 
+        <button
           onClick={handleCreateNew}
           className="flex items-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-md transition-all"
         >
@@ -379,9 +377,8 @@ export function EndpointsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-2 text-[11px] font-mono transition-colors ${
-                filter === f ? 'bg-slate-800 text-slate-200' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-900'
-              }`}
+              className={`px-3 py-2 text-[11px] font-mono transition-colors ${filter === f ? 'bg-slate-800 text-slate-200' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-900'
+                }`}
             >
               {f === 'all' ? 'Todos' : f === 'active' ? 'Ativos' : 'Inativos'}
             </button>
@@ -394,9 +391,8 @@ export function EndpointsPage() {
         {filtered.map(ep => (
           <div
             key={ep.id}
-            className={`group rounded-lg border bg-slate-900/60 hover:bg-slate-900 transition-all ${
-              ep.is_active ? 'border-slate-800/60 hover:border-slate-700' : 'border-slate-800/30 opacity-60 hover:opacity-80'
-            }`}
+            className={`group rounded-lg border bg-slate-900/60 hover:bg-slate-900 transition-all ${ep.is_active ? 'border-slate-800/60 hover:border-slate-700' : 'border-slate-800/30 opacity-60 hover:opacity-80'
+              }`}
           >
             {/* Card Header */}
             <div className="flex items-start justify-between p-4 pb-3">
@@ -409,11 +405,10 @@ export function EndpointsPage() {
                   <p className="text-[11px] text-slate-500 font-mono">/{ep.slug}</p>
                 </div>
               </div>
-              <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border ${
-                ep.is_active
-                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                  : 'text-slate-600 bg-slate-800/60 border-slate-700/40'
-              }`}>
+              <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border ${ep.is_active
+                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                : 'text-slate-600 bg-slate-800/60 border-slate-700/40'
+                }`}>
                 <span className={`w-1 h-1 rounded-full ${ep.is_active ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                 {ep.is_active ? 'Ativo' : 'Inativo'}
               </div>

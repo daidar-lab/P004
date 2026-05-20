@@ -95,7 +95,8 @@ export class BSynapseService {
       const interpolateTemplate = (template: string, data: Record<string, any>): string => {
         if (!template) return '';
 
-        return template.replace(/\{\{\s*([^{}]+)\s*\}\}/g, (_, key) => {
+        // Altere a linha 98 para:
+        return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
           const safeKey = key.trim();
 
           if (!Object.hasOwn(data, safeKey)) {

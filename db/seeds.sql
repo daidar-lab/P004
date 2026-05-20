@@ -1,4 +1,9 @@
 -- 1. Inserir os endpoints bases no schema isolado
+
+const SYNAPSE_SCHEMA = 'synapse';
+
+// Onde você usava a string pura, mude para a constante:
+// Exemplo: `SELECT * FROM ${SYNAPSE_SCHEMA}.api_keys`
 INSERT INTO synapse.endpoints (slug, name, aws_model_id, temperature) VALUES
 ('energy', 'Audit Energy Analytics', 'amazon.titan-text-express-v1', 0.50),
 ('intervention', 'Segurança do Trabalho - Visão Computacional', 'anthropic.claude-3-haiku-20240307-v1:0', 0.20);

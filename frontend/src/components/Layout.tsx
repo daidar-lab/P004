@@ -240,10 +240,7 @@ export function Layout({ children, currentPage, onNavigate, user, onLogout }: Re
             >
               {isLight ? <Moon size={16} /> : <Sun size={16} />}
             </button>
-            <button className="relative p-1.5 text-slate-600 hover:text-slate-300 transition-colors">
-              <Bell size={16} />
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            </button>
+
             {/* Avatar and dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button

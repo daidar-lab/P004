@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../config/database';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 export const apiKeysRouter = Router();
 

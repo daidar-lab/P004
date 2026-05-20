@@ -31,7 +31,8 @@ const navItems = [
   { id: 'api-keys' as Page, label: 'Chaves de API', icon: KeyRound },
 ]
 
-export function Layout({ children, currentPage, onNavigate, user, onLogout }: LayoutProps) {
+// Deixe a interface como está e altere a linha 34 para:
+export function Layout({ children, currentPage, onNavigate, user, onLogout }: Readonly<LayoutProps>) {
   const [collapsed, setCollapsed] = useState(false);
   const [isLight, setIsLight] = useState(() => {
     return localStorage.getItem('theme') === 'light';

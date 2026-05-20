@@ -98,7 +98,7 @@ export class BSynapseService {
         return template.replace(/\{\{\s*([^{}]+)\s*\}\}/g, (_, key) => {
           const safeKey = key.trim();
 
-          if (!Object.prototype.hasOwnProperty.call(data, safeKey)) {
+          if (!Object.hasOwn(data, safeKey)) {
             return `{{${safeKey}}}`;
           }
 

@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 // Segredo do JWT lido do .env ou com fallback seguro
 const JWT_SECRET = process.env.JWT_SECRET || 'synapse-super-secret-key-12345';
@@ -33,15 +33,15 @@ export function verifyPassword(password: string, storedHash: string): boolean {
  */
 export function generateToken(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  
+
   // Define expiração padrão para 24 horas a partir do momento atual
   const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
   const body = Buffer.from(JSON.stringify({ ...payload, exp })).toString('base64url');
-  
+
   const signature = crypto.createHmac('sha256', JWT_SECRET)
     .update(`${header}.${body}`)
     .digest('base64url');
-    
+
   return `${header}.${body}.${signature}`;
 }
 
@@ -53,21 +53,21 @@ export function verifyToken(token: string): any {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    
+
     const [header, body, signature] = parts;
     const expectedSignature = crypto.createHmac('sha256', JWT_SECRET)
       .update(`${header}.${body}`)
       .digest('base64url');
-      
+
     if (signature !== expectedSignature) return null;
-    
+
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
-    
+
     // Verifica expiração temporal
     if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
       return null;
     }
-    
+
     return payload;
   } catch (error) {
     return null;

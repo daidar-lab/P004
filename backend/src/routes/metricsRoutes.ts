@@ -23,7 +23,7 @@ metricsRouter.get('/summary', async (req: Request, res: Response) => {
     const successToday = Number.parseInt(row.success_today || '0', 10);
     const successRate = todayRequests > 0
       ? Number.parseFloat(((successToday / todayRequests) * 100).toFixed(2))
-      : 100.0;
+      : 100;
     const avgLatency = Math.round(Number.parseFloat(row.avg_latency_today || '0'));
     const totalTokens = Number.parseInt(row.total_tokens_today || '0', 10);
 

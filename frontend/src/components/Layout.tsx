@@ -1,17 +1,19 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   LayoutDashboard,
   Zap,
   KeyRound,
   ChevronRight,
-  Activity,
   Settings,
   LogOut,
   Bell,
   Sun,
   Moon,
+  Eye,
+  EyeOff,
+  X,
+  Lock,
 } from 'lucide-react'
-import { useEffect } from 'react'
 
 type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users'
 
@@ -35,6 +37,62 @@ export function Layout({ children, currentPage, onNavigate, user, onLogout }: La
     return localStorage.getItem('theme') === 'light';
   });
   const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Password modal state
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+
+  const openPwModal = () => {
+    setShowDropdown(false);
+    setPwForm({ current: '', newPw: '', confirm: '' });
+    setPwError('');
+    setPwSuccess('');
+    setShowPwModal(true);
+  };
+
+  const handleChangePassword = async () => {
+    setPwError('');
+    setPwSuccess('');
+
+    if (!pwForm.current || !pwForm.newPw || !pwForm.confirm) {
+      setPwError('Preencha todos os campos.');
+      return;
+    }
+    if (pwForm.newPw.length < 6) {
+      setPwError('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (pwForm.newPw !== pwForm.confirm) {
+      setPwError('As senhas não coincidem.');
+      return;
+    }
+
+    setPwLoading(true);
+    try {
+      const res = await fetch('http://localhost:3334/v1/auth/change-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwForm.current, newPassword: pwForm.newPw }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPwError(data.error || 'Erro ao alterar senha.');
+      } else {
+        setPwSuccess('Senha alterada com sucesso!');
+        setTimeout(() => setShowPwModal(false), 1500);
+      }
+    } catch {
+      setPwError('Erro de conexão com o servidor.');
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isLight) {
@@ -44,7 +102,18 @@ export function Layout({ children, currentPage, onNavigate, user, onLogout }: La
       document.documentElement.classList.remove('light')
       localStorage.setItem('theme', 'dark')
     }
-  }, [isLight])
+  }, [isLight]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-50 font-mono overflow-hidden">
@@ -175,10 +244,11 @@ export function Layout({ children, currentPage, onNavigate, user, onLogout }: La
               <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
             </button>
             {/* Avatar and dropdown */}
-            <div className="relative" onBlur={e => setShowDropdown(false)}>
+            <div className="relative" ref={dropdownRef}>
               <button
+                type="button"
                 className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[11px] text-slate-300"
-                onClick={() => setShowDropdown(!showDropdown)}
+                onClick={() => setShowDropdown(prev => !prev)}
                 title="Perfil"
               >
                 {user.name.split(' ')[0][0]}{user.name.split(' ')[1] ? user.name.split(' ')[1][0] : ''}
@@ -191,7 +261,7 @@ export function Layout({ children, currentPage, onNavigate, user, onLogout }: La
                   </div>
                   <button
                     className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700"
-                    onClick={() => alert('Change password modal not implemented')}
+                    onClick={openPwModal}
                   >
                     Alterar senha
                   </button>
@@ -212,6 +282,109 @@ export function Layout({ children, currentPage, onNavigate, user, onLogout }: La
           {children}
         </main>
       </div>
+
+      {/* ── Change Password Modal ── */}
+      {showPwModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/60">
+              <div className="flex items-center gap-2">
+                <Lock size={16} className="text-emerald-400" />
+                <span className="text-sm font-semibold text-slate-100">Alterar Senha</span>
+              </div>
+              <button
+                onClick={() => setShowPwModal(false)}
+                className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-4 space-y-4">
+              {/* Current password */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Senha atual</label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPw ? 'text' : 'password'}
+                    value={pwForm.current}
+                    onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))}
+                    className="w-full px-3 py-2 pr-9 rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPw(v => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  >
+                    {showCurrentPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New password */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Nova senha</label>
+                <div className="relative">
+                  <input
+                    type={showNewPw ? 'text' : 'password'}
+                    value={pwForm.newPw}
+                    onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value }))}
+                    className="w-full px-3 py-2 pr-9 rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors"
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPw(v => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  >
+                    {showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm new password */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Confirmar nova senha</label>
+                <input
+                  type="password"
+                  value={pwForm.confirm}
+                  onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors"
+                  placeholder="Repita a nova senha"
+                />
+              </div>
+
+              {/* Feedback */}
+              {pwError && (
+                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded px-3 py-2">{pwError}</p>
+              )}
+              {pwSuccess && (
+                <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-3 py-2">{pwSuccess}</p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-700/60">
+              <button
+                onClick={() => setShowPwModal(false)}
+                className="px-4 py-1.5 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={pwLoading}
+                className="px-4 py-1.5 rounded-md text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {pwLoading ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

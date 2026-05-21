@@ -1,18 +1,17 @@
-export type AwsModelId =
-  | 'amazon.titan-text-express-v1'
-  | 'amazon.titan-text-lite-v1'
-  | 'anthropic.claude-3-haiku-20240307-v1:0'
-  | 'anthropic.claude-3-sonnet-20240229-v1:0'
-  | 'anthropic.claude-3-5-sonnet-20240620-v1:0'
-  | 'meta.llama3-8b-instruct-v1:0'
-  | 'meta.llama3-70b-instruct-v1:0'
-  | 'mistral.mistral-7b-instruct-v0:2'
+export type AwsModelId = 
+  | 'TITAN_EXPRESS' 
+  | 'TITAN_LITE' 
+  | 'CLAUDE_HAIKU' 
+  | 'CLAUDE_SONNET' 
+  | 'LLAMA3_8B' 
+  | 'LLAMA3_70B' 
+  | 'MISTRAL_7B';
 
 export interface Endpoint {
   id: string
   slug: string
   name: string
-  aws_model_id: AwsModelId
+  aws_model_id: AwsModelId // O TypeScript vai garantir que aqui só entre os aliases novos
   temperature: number
   is_active: boolean
   created_at: string

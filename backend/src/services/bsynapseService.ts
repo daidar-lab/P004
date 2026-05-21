@@ -1,17 +1,6 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { bedrockClient } from '../config/bedrock';
 import { db } from '../config/database';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-// Inicialização do cliente AWS Bedrock em modelo Singleton utilizando Keep-Alive
-const bedrockClient = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  }
-});
 
 interface ExecutionParams {
   slug: string;
@@ -19,7 +8,69 @@ interface ExecutionParams {
   requestBody: any;
 }
 
+// 1. CAMADA DE ABSTRAÇÃO: Centraliza as regras e identificadores estáveis dos modelos
+const MODEL_MAPPING: Record<
+  string, 
+  { aws_id: string; provider: 'claude' | 'titan' | 'meta' | 'mistral'; isMultimodal: boolean }
+> = {
+  // Família de Texto Proprietária (Amazon) - Atualizado
+  'TITAN_EXPRESS': {
+    aws_id: 'us.amazon.nova-lite-v1:0', 
+    provider: 'titan', // Mantido para compatibilidade interna, se necessário
+    isMultimodal: true 
+  },
+  'TITAN_LITE': {
+    aws_id: 'us.amazon.nova-micro-v1:0', 
+    provider: 'titan',
+    isMultimodal: false
+  },
+
+  // Família Claude (Anthropic) - Atualizado
+  'CLAUDE_HAIKU': {
+    aws_id: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', 
+    provider: 'claude',
+    isMultimodal: true
+  },
+  'CLAUDE_SONNET': {
+    aws_id: 'global.anthropic.claude-sonnet-4-6', 
+    provider: 'claude',
+    isMultimodal: true
+  },
+
+  // Família Llama (Meta) - Atualizado
+  'LLAMA_8B': {
+    aws_id: 'us.meta.llama3-1-8b-instruct-v1:0',
+    provider: 'meta',
+    isMultimodal: false
+  },
+  'LLAMA_70B': {
+    aws_id: 'us.meta.llama3-3-70b-instruct-v1:0',
+    provider: 'meta',
+    isMultimodal: false
+  },
+  'LLAMA_SMALL_MULTIMODAL': {
+    aws_id: 'us.meta.llama3-2-11b-instruct-v1:0',
+    provider: 'meta',
+    isMultimodal: true
+  },
+
+  // Família Mistral (Mistral AI) - Atualizado
+  'MISTRAL_SMALL': {
+    aws_id: 'us.mistral.ministral-3-8b-instruct-v1:0',
+    provider: 'mistral',
+    isMultimodal: false
+  },
+  'MISTRAL_LARGE': {
+    aws_id: 'us.mistral.mistral-large-2407-v1:0',
+    provider: 'mistral',
+    isMultimodal: false
+  }
+};
+
 export class BSynapseService {
+  /**
+   * Grava assincronamente os metadados e telemetria da requisição na tabela de auditoria
+   */
   public static async logRequest(params: {
     apiKeyId?: string;
     endpointId?: string;
@@ -54,6 +105,9 @@ export class BSynapseService {
     }
   }
 
+  /**
+   * Executa a orquestração dinâmica do prompt baseado no endpoint requisitado pelo slug
+   */
   public static async executeDynamicAnalysis({ slug, clientApiKeyId, requestBody }: ExecutionParams) {
     const startTime = Date.now();
     let endpointId: string | undefined;
@@ -87,27 +141,31 @@ export class BSynapseService {
         throw error;
       }
 
-      const { endpoint_id, aws_model_id, temperature, system_prompt, user_prompt_template } = contextResult.rows[0];
+      const { endpoint_id, aws_model_id: dbModelAlias, temperature, system_prompt, user_prompt_template } = contextResult.rows[0];
       endpointId = endpoint_id;
-      awsModelId = aws_model_id;
+
+      const modelConfig = MODEL_MAPPING[dbModelAlias];
+      if (!modelConfig) {
+        const error: any = new Error(`Alias de modelo [${dbModelAlias}] cadastrado no banco não possui mapeamento no backend.`);
+        error.statusCode = 501;
+        throw error;
+      }
+
+      awsModelId = modelConfig.aws_id;
 
       // Função auxiliar para injetar variáveis do JSON no template {{chave}}
       const interpolateTemplate = (template: string, data: Record<string, any>): string => {
         if (!template) return '';
-
         let result = template;
         let startIndex = result.indexOf('{{');
 
         while (startIndex !== -1) {
           const endIndex = result.indexOf('}}', startIndex);
-
           if (endIndex === -1) break;
 
-          // Extrai o que está dentro de {{ }}
           const rawKey = result.substring(startIndex + 2, endIndex);
           const safeKey = rawKey.trim();
 
-          // Aplica a exata mesma lógica de validação que você enviou
           let replacement = `{{${safeKey}}}`;
           if (Object.hasOwn(data, safeKey)) {
             const val = data[safeKey];
@@ -116,106 +174,75 @@ export class BSynapseService {
             }
           }
 
-          // Substitui no texto
           result = result.substring(0, startIndex) + replacement + result.substring(endIndex + 2);
-
-          // Avança para a próxima tag
           startIndex = result.indexOf('{{', startIndex + replacement.length);
         }
-
         return result;
       };
 
-      // 2. ORQUESTRAÇÃO E MONTAGEM DO PAYLOAD CONFORME O MODELO ALVO
-      let awsPayload: any;
+      const finalUserText = user_prompt_template
+        ? interpolateTemplate(user_prompt_template, requestBody)
+        : `Client Data Context:\n${JSON.stringify(requestBody, null, 2)}\n\nExecute a análise estruturada e retorne os resultados.`;
 
-      // Cenário A: Integração Multimodal Claude (Processamento de Imagens - P007)
-      if (aws_model_id.includes('claude')) {
-        const { imageBase64, mimeType } = requestBody;
+      // 2. MONTAGEM DO CONTEXTO DE CONTEÚDO (Suporte unificado a Texto e Imagem/Multimodalidade)
+      const messageContent: any[] = [];
+      const { imageBase64, mimeType } = requestBody;
 
-        if (!imageBase64 || !mimeType) {
-          const error: any = new Error('Payload inválido para análise visual. Atributos imageBase64 e mimeType são obrigatórios.');
-          error.statusCode = 400;
-          throw error;
-        }
-
-        awsPayload = {
-          anthropic_version: "bedrock-2023-05-31",
-          max_tokens: 2000,
-          temperature: Number.parseFloat(temperature),
-          system: system_prompt,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: mimeType,
-                    data: imageBase64
-                  }
-                },
-                {
-                  type: "text",
-                  text: "Execute a análise de riscos em conformidade com as diretrizes do sistema."
-                }
-              ]
+      if (modelConfig.isMultimodal && imageBase64 && mimeType) {
+        // Formato unificado da Converse API para enviar imagens (Nova, Claude e Llama leem igual!)
+        // O SDK espera o buffer puro ou string tratada. Passamos em formato de bytes/Uint8Array se necessário,
+        // mas a estrutura padrão aceita o objeto diretamente dependendo da versão. Ajustado para o padrão seguro do SDK v3:
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        
+        messageContent.push({
+          image: {
+            format: mimeType.split('/')[1] || 'jpeg', // Transforma "image/png" em "png"
+            source: {
+              bytes: Buffer.from(base64Data, 'base64')
             }
-          ]
-        };
-      }
-      // Cenário B: Integração Textual Titan (Análise de Faturas - P001)
-      else if (aws_model_id.includes('titan')) {
-        // Se houver um template cadastrado, injetamos os dados. Se não, formatamos o JSON cru.
-        const finalUserText = user_prompt_template
-          ? interpolateTemplate(user_prompt_template, requestBody)
-          : `Client Data Context:\n${JSON.stringify(requestBody, null, 2)}\n\nExecute a análise estruturada e retorne os resultados.`;
-
-        awsPayload = {
-          inputText: `${system_prompt}\n\n${finalUserText}`,
-          textGenerationConfig: {
-            maxTokenCount: 2048,
-            stopSequences: [],
-            temperature: Number.parseFloat(temperature),
-            topP: 0.9
           }
-        };
-      }
-      // Fallback de Segurança
-      else {
-        const error: any = new Error(`Provedor de modelo [${aws_model_id}] homologado no banco mas sem driver de parser no serviço.`);
-        error.statusCode = 501;
+        });
+      } else if (modelConfig.isMultimodal && (!imageBase64 || !mimeType)) {
+        const error: any = new Error('Payload inválido para análise visual. Atributos imageBase64 e mimeType são obrigatórios.');
+        error.statusCode = 400;
         throw error;
       }
 
-      // 3. DESPACHO DA REQUISIÇÃO PARA O PERÍMETRO DA AWS
-      const command = new InvokeModelCommand({
-        modelId: aws_model_id,
-        contentType: 'application/json',
-        accept: 'application/json',
-        body: JSON.stringify(awsPayload),
+      // Adiciona o texto do prompt original na mensagem
+      messageContent.push({ text: finalUserText });
+
+      // 3. EXECUÇÃO DA CONVERSE API (Estrutura idêntica para qualquer LLM da lista)
+      const command = new ConverseCommand({
+        modelId: modelConfig.aws_id,
+        messages: [
+          {
+            role: 'user',
+            content: messageContent
+          }
+        ],
+        // O system prompt entra como uma propriedade dedicada na Converse API
+        system: system_prompt ? [{ text: system_prompt }] : undefined,
+        inferenceConfig: {
+          maxTokens: 2048,
+          temperature: Number.parseFloat(temperature) || 0.7
+        }
       });
 
-      const awsResponse = await bedrockClient.send(command);
+      // Dispara a requisição usando o bedrockClient injetado do seu arquivo de configuração
+      const response = await bedrockClient.send(command);
 
-      // 4. NORMALIZAÇÃO DA RESPOSTA EM TEMPO DE RUNTIME
-      const responseDecoder = new TextDecoder('utf-8');
-      const rawResponseBody = responseDecoder.decode(awsResponse.body);
-      const parsedData = JSON.parse(rawResponseBody);
-
-      // Extração de consumo de tokens
-      if (aws_model_id.includes('claude')) {
-        tokensInput = parsedData.usage?.input_tokens || 0;
-        tokensOutput = parsedData.usage?.output_tokens || 0;
-      } else if (aws_model_id.includes('titan')) {
-        tokensInput = parsedData.inputTextTokenCount || 0;
-        tokensOutput = parsedData.results?.[0]?.tokenCount || 0;
+      // Coleta automática e precisa de tokens para a sua auditoria
+      if (response.usage) {
+        tokensInput = response.usage.inputTokens || 0;
+        tokensOutput = response.usage.outputTokens || 0;
       }
 
       const latencyMs = Date.now() - startTime;
 
-      // Gravação assíncrona do log de sucesso
+      // Captura o texto final retornado
+      const responseText = response.output?.message?.content?.[0]?.text || '';
+
+      // Grava o log com sucesso
       await this.logRequest({
         apiKeyId: clientApiKeyId,
         endpointId,
@@ -227,20 +254,16 @@ export class BSynapseService {
         statusCode: 200
       });
 
-      // Tratamento dos retornos específicos de cada player
-      if (aws_model_id.includes('claude')) {
-        return parsedData.content[0].text;
-      } else if (aws_model_id.includes('titan')) {
-        return parsedData.results[0].outputText;
-      }
-
-      return parsedData;
+      return {
+        success: true,
+        data: responseText
+      };
 
     } catch (error: any) {
       const latencyMs = Date.now() - startTime;
       const statusCode = error.statusCode || 500;
 
-      // Gravação assíncrona do log de erro
+      // Grava o log registrando a falha
       await this.logRequest({
         apiKeyId: clientApiKeyId,
         endpointId,
@@ -250,7 +273,7 @@ export class BSynapseService {
         tokensInput,
         tokensOutput,
         statusCode,
-        errorMessage: error.message || 'Erro interno de processamento.'
+        errorMessage: error.message
       });
 
       throw error;

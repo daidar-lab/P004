@@ -10,8 +10,9 @@ import { authRouter } from './routes/authRoutes';
 import { usersRouter } from './routes/usersRoutes';
 import { analyzeRouter } from './routes/analyzeRoutes';
 import { apiKeysRouter } from './routes/apiKeysRoutes';
-import { endpointsRouter } from './routes/endpointsRoutes';
+import { requestLogsRouter } from './routes/requestLogsRoutes';
 import { dashboardRouter } from './routes/dashboardRoutes';
+import { endpointsRouter } from './routes/endpointsRoutes';
 import { metricsRouter } from './routes/metricsRoutes';
 
 dotenv.config();
@@ -44,8 +45,9 @@ app.use('/v1/users', usersRouter);
 // ✅ ROTAS DO PAINEL / DASHBOARD (PROTEGIDAS POR TOKEN DE USUÁRIO)
 app.use('/v1/apikeys', userAuth, apiKeysRouter);
 app.use('/v1/endpoints', userAuth, endpointsRouter);
-app.use('/v1/dashboard', userAuth, dashboardRouter);
+app.use('/v1/request-logs', userAuth, requestLogsRouter);
 app.use('/v1/metrics', userAuth, metricsRouter);
+app.use('/v1/dashboard', userAuth, dashboardRouter);
 
 
 // 🔐 MIDDLEWARE DE SEGURANÇA PARA API CLIENT (SÓ DAQUI PRA BAIXO)

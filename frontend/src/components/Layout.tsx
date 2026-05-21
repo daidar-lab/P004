@@ -6,16 +6,16 @@ import {
   ChevronRight,
   Settings,
   LogOut,
-  Bell,
   Sun,
   Moon,
   Eye,
   EyeOff,
   X,
   Lock,
+  Activity
 } from 'lucide-react'
 
-type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users'
+type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users' | 'request-logs'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -29,9 +29,9 @@ const navItems = [
   { id: 'dashboard' as Page, label: 'Dashboard', icon: LayoutDashboard },
   { id: 'endpoints' as Page, label: 'Endpoints', icon: Zap },
   { id: 'api-keys' as Page, label: 'Chaves de API', icon: KeyRound },
+  { id: 'request-logs' as Page, label: 'Logs de Requisições', icon: Activity },
 ]
 
-// Deixe a interface como está e altere a linha 34 para:
 export function Layout({ children, currentPage, onNavigate, user, onLogout }: Readonly<LayoutProps>) {
   const [collapsed, setCollapsed] = useState(false);
   const [isLight, setIsLight] = useState(() => {

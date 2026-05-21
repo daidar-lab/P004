@@ -6,6 +6,7 @@ import { ApiKeysPage } from './pages/ApiKeysPage';
 import { UsersPage } from './pages/UsersPage';
 import { LoginPage } from './pages/LoginPage';
 import { Activity } from 'lucide-react';
+import { RequestLogsPage } from './pages/RequestLogsPage';
 
 // Monkey patch global fetch para injetar o JWT automaticamente
 const originalFetch = globalThis.fetch;
@@ -37,7 +38,7 @@ globalThis.fetch = async (input, init) => {
   return response;
 };
 
-export type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users';
+export type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users' | 'request-logs';
 
 export interface User {
   id: string;
@@ -124,6 +125,7 @@ function App() {
       {currentPage === 'dashboard' && <DashboardPage />}
       {currentPage === 'endpoints' && <EndpointsPage />}
       {currentPage === 'api-keys' && <ApiKeysPage />}
+      {currentPage === 'request-logs' && <RequestLogsPage />}
       {currentPage === 'users' && user.role === 'admin' && <UsersPage currentUser={user} />}
     </Layout>
   );

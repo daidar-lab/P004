@@ -56,11 +56,14 @@ dashboardRouter.get('/stats', async (req: Request, res: Response) => {
       : 100;
 
     // 4. Buscar últimas 10 atividades (logs de requisição recentes)
+ // 4. Buscar últimas 10 atividades (logs de requisição recentes) com telemetria de tokens
     const activityQuery = `
       SELECT 
         slug,
         status_code,
         latency_ms,
+        tokens_input,   -- 👈 Adicionado para puxar do banco
+        tokens_output,  -- 👈 Adicionado para puxar do banco
         created_at
       FROM synapse.request_logs
       ORDER BY created_at DESC
@@ -77,10 +80,12 @@ dashboardRouter.get('/stats', async (req: Request, res: Response) => {
         status: isOk ? 'ok' : 'error',
         endpoint: row.slug,
         latency,
-        time: getRelativeTime(new Date(row.created_at))
+        time: getRelativeTime(new Date(row.created_at)),
+        // 🌟 Repassando para o React ler no payload do JSON:
+        tokens_input: row.tokens_input,
+        tokens_output: row.tokens_output
       };
     });
-
     const stats = {
       endpoints: {
         active: activeEndpoints,
@@ -100,10 +105,62 @@ dashboardRouter.get('/stats', async (req: Request, res: Response) => {
       },
       recentActivity: recentActivity
     };
-
     return res.status(200).json(stats);
   } catch (error) {
     console.error('[ERRO NA ROTA /v1/dashboard/stats]:', error);
     return res.status(500).json({ error: 'Erro interno ao buscar estatísticas do dashboard' });
+  }
+});
+
+// New route: Get request logs with filters & pagination
+dashboardRouter.get('/request-logs', async (req: Request, res: Response) => {
+  try {
+    const { slug, sort, order, limit = '20', offset = '0', startDate, endDate } = req.query as any;
+    // Allow sorting by any column that exists in the table
+    const allowedSort = ['id', 'api_key_id', 'endpoint_id', 'slug', 'latency_ms', 'aws_model_id', 'tokens_input', 'tokens_output', 'status_code', 'error_message', 'created_at'];
+    const sortField = allowedSort.includes(String(sort)) ? String(sort) : 'created_at';
+    const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+    const lim = Math.min(parseInt(String(limit), 10), 100);
+    const off = Math.max(parseInt(String(offset), 10), 0);
+
+    // Build dynamic WHERE clause and values
+    const conditions: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+    if (slug) {
+      conditions.push(`slug = $${idx}`);
+      values.push(slug);
+      idx++;
+    }
+    if (startDate) {
+      conditions.push(`created_at >= $${idx}`);
+      values.push(startDate);
+      idx++;
+    }
+    if (endDate) {
+      conditions.push(`created_at <= $${idx}`);
+      values.push(endDate);
+      idx++;
+    }
+    const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const query = `
+      SELECT id, api_key_id, endpoint_id, slug, latency_ms, aws_model_id, tokens_input, tokens_output, status_code, error_message, created_at
+      FROM synapse.request_logs
+      ${whereClause}
+      ORDER BY ${sortField} ${sortOrder}
+      LIMIT $${idx} OFFSET $${idx + 1};
+    `;
+    values.push(lim, off);
+
+    const result = await db.query(query, values);
+    // Get total count with same filters (without pagination)
+    const countQuery = `SELECT COUNT(*) FROM synapse.request_logs ${whereClause};`;
+    const countRes = await db.query(countQuery, values.slice(0, values.length - 2)); // exclude limit/offset
+    const total = parseInt(countRes.rows[0].count, 10);
+    return res.status(200).json({ logs: result.rows, total });
+  } catch (error) {
+    console.error('[ERROR GET /v1/dashboard/request-logs]:', error);
+    return res.status(500).json({ error: 'Erro interno ao buscar logs de requisição' });
   }
 });

@@ -42,6 +42,7 @@ export function DashboardPage() {
     );
   }
 
+  // Cards superiores de estatísticas gerais
   const stats = [
     {
       label: 'Endpoints Ativos',
@@ -114,7 +115,7 @@ export function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Endpoints status */}
+        {/* Bloco da Esquerda: Lista de Endpoints */}
         <div className="lg:col-span-2 rounded-lg border border-slate-800/60 bg-slate-900/40">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/60">
             <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Endpoints</h2>
@@ -140,25 +141,46 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Activity Feed */}
+        {/* Bloco da Direita: Atividade Recente + Telemetria de Tokens */}
         <div className="rounded-lg border border-slate-800/60 bg-slate-900/40">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/60">
-            <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Atividade</h2>
+            <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Atividade & Consumo</h2>
             <Clock size={13} className="text-slate-600" />
           </div>
+
           <div className="divide-y divide-slate-800/40">
-            {data.recentActivity.length > 0 ? (
+            {data.recentActivity && data.recentActivity.length > 0 ? (
               data.recentActivity.map((a: any, i: number) => (
-                <div key={i} className="flex items-center gap-2.5 px-4 py-2.5">
-                  {a.status === 'ok'
-                    ? <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
-                    : <XCircle size={13} className="text-rose-500 flex-shrink-0" />
-                  }
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] text-slate-300 font-mono truncate">/{a.endpoint}</p>
-                    <p className="text-[10px] text-slate-600">{a.latency}</p>
+                <div key={i} className="flex flex-col gap-1.5 px-4 py-3 hover:bg-slate-800/10 transition-colors">
+
+                  {/* Linha Principal: Status, Slug e Hora */}
+                  <div className="flex items-center gap-2.5">
+                    {a.status === 'ok'
+                      ? <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
+                      : <XCircle size={13} className="text-rose-500 flex-shrink-0" />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] text-slate-300 font-mono truncate">/{a.endpoint}</p>
+                    </div>
+                    <span className="text-[10px] text-slate-600 flex-shrink-0">{a.time}</span>
                   </div>
-                  <span className="text-[10px] text-slate-600 flex-shrink-0">{a.time}</span>
+
+                  {/* 📊 Linha de Telemetria: Latência e Distribuição de Tokens */}
+                  <div className="flex items-center justify-between pl-5 text-[10px] font-mono text-slate-500">
+                    <div>
+                      <span>Latência: <span className="text-slate-400">{a.latency}</span></span>
+                    </div>
+
+                    {/* Renderiza os tokens caso existam no objeto de atividade */}
+                    {(a.tokens_input !== undefined || a.tokens_output !== undefined) && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <span>In: <span className="text-violet-400">{a.tokens_input ?? 0}</span></span>
+                        <span>•</span>
+                        <span>Out: <span className="text-amber-400">{a.tokens_output ?? 0}</span></span>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               ))
             ) : (
@@ -168,6 +190,7 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+
       </div>
     </div>
   )

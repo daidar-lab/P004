@@ -7,66 +7,7 @@ interface ExecutionParams {
   clientApiKeyId: string;
   requestBody: any;
 }
-
-// 1. CAMADA DE ABSTRAÇÃO: Centraliza as regras e identificadores estáveis dos modelos
-const MODEL_MAPPING: Record<
-  string, 
-  { aws_id: string; provider: 'claude' | 'titan' | 'meta' | 'mistral'; isMultimodal: boolean }
-> = {
-  // Família de Texto Proprietária (Amazon) - Atualizado
-  'TITAN_EXPRESS': {
-    aws_id: 'us.amazon.nova-lite-v1:0', 
-    provider: 'titan', // Mantido para compatibilidade interna, se necessário
-    isMultimodal: true 
-  },
-  'TITAN_LITE': {
-    aws_id: 'us.amazon.nova-micro-v1:0', 
-    provider: 'titan',
-    isMultimodal: false
-  },
-
-  // Família Claude (Anthropic) - Atualizado
-  'CLAUDE_HAIKU': {
-    aws_id: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', 
-    provider: 'claude',
-    isMultimodal: true
-  },
-  'CLAUDE_SONNET': {
-    aws_id: 'global.anthropic.claude-sonnet-4-6', 
-    provider: 'claude',
-    isMultimodal: true
-  },
-
-  // Família Llama (Meta) - Atualizado
-  'LLAMA_8B': {
-    aws_id: 'us.meta.llama3-1-8b-instruct-v1:0',
-    provider: 'meta',
-    isMultimodal: false
-  },
-  'LLAMA_70B': {
-    aws_id: 'us.meta.llama3-3-70b-instruct-v1:0',
-    provider: 'meta',
-    isMultimodal: false
-  },
-  'LLAMA_SMALL_MULTIMODAL': {
-    aws_id: 'us.meta.llama3-2-11b-instruct-v1:0',
-    provider: 'meta',
-    isMultimodal: true
-  },
-
-  // Família Mistral (Mistral AI) - Atualizado
-  'MISTRAL_SMALL': {
-    aws_id: 'us.mistral.ministral-3-8b-instruct-v1:0',
-    provider: 'mistral',
-    isMultimodal: false
-  },
-  'MISTRAL_LARGE': {
-    aws_id: 'us.mistral.mistral-large-2407-v1:0',
-    provider: 'mistral',
-    isMultimodal: false
-  }
-};
-
+  
 export class BSynapseService {
   /**
    * Grava assincronamente os metadados e telemetria da requisição na tabela de auditoria
@@ -116,11 +57,12 @@ export class BSynapseService {
     let tokensOutput = 0;
 
     try {
-      // 1. VERIFICAÇÃO DE PERMISSÃO E RESOLUÇÃO DE METADADOS DO ENDPOINT
+      // 1. VERIFICAÇÃO DE PERMISSÃO E RESOLUÇÃO DE METADADOS DO ENDPOINT (Lendo direto a estrutura real)
       const contextQuery = `
         SELECT 
           e.id AS endpoint_id,
-          e.aws_model_id,
+          e.aws_model_id,     -- ID físico real vindo do banco (Ex: 'global.anthropic.claude-sonnet-4-6')
+          e.is_multimodal,    -- Flag que você acabou de criar e validar via SQL
           e.temperature,
           p.system_prompt,
           p.user_prompt_template
@@ -141,17 +83,23 @@ export class BSynapseService {
         throw error;
       }
 
-      const { endpoint_id, aws_model_id: dbModelAlias, temperature, system_prompt, user_prompt_template } = contextResult.rows[0];
+      const { 
+        endpoint_id, 
+        aws_model_id, 
+        is_multimodal, 
+        temperature, 
+        system_prompt, 
+        user_prompt_template 
+      } = contextResult.rows[0];
+      
       endpointId = endpoint_id;
+      awsModelId = aws_model_id; 
 
-      const modelConfig = MODEL_MAPPING[dbModelAlias];
-      if (!modelConfig) {
-        const error: any = new Error(`Alias de modelo [${dbModelAlias}] cadastrado no banco não possui mapeamento no backend.`);
-        error.statusCode = 501;
+      if (!awsModelId) {
+        const error: any = new Error(`O endpoint [${slug}] não possui um aws_model_id válido configurado no banco.`);
+        error.statusCode = 500;
         throw error;
       }
-
-      awsModelId = modelConfig.aws_id;
 
       // Função auxiliar para injetar variáveis do JSON no template {{chave}}
       const interpolateTemplate = (template: string, data: Record<string, any>): string => {
@@ -184,43 +132,39 @@ export class BSynapseService {
         ? interpolateTemplate(user_prompt_template, requestBody)
         : `Client Data Context:\n${JSON.stringify(requestBody, null, 2)}\n\nExecute a análise estruturada e retorne os resultados.`;
 
-      // 2. MONTAGEM DO CONTEXTO DE CONTEÚDO (Suporte unificado a Texto e Imagem/Multimodalidade)
+      // 2. MONTAGEM DO CONTEXTO DE CONTEÚDO (Usa a flag direta do banco)
       const messageContent: any[] = [];
       const { imageBase64, mimeType } = requestBody;
 
-      if (modelConfig.isMultimodal && imageBase64 && mimeType) {
-        // Formato unificado da Converse API para enviar imagens (Nova, Claude e Llama leem igual!)
-        // O SDK espera o buffer puro ou string tratada. Passamos em formato de bytes/Uint8Array se necessário,
-        // mas a estrutura padrão aceita o objeto diretamente dependendo da versão. Ajustado para o padrão seguro do SDK v3:
+      if (is_multimodal && imageBase64 && mimeType) {
         const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
         
         messageContent.push({
           image: {
-            format: mimeType.split('/')[1] || 'jpeg', // Transforma "image/png" em "png"
+            format: mimeType.split('/')[1] || 'jpeg', 
             source: {
               bytes: Buffer.from(base64Data, 'base64')
             }
           }
         });
-      } else if (modelConfig.isMultimodal && (!imageBase64 || !mimeType)) {
+      } else if (is_multimodal && (!imageBase64 || !mimeType)) {
         const error: any = new Error('Payload inválido para análise visual. Atributos imageBase64 e mimeType são obrigatórios.');
         error.statusCode = 400;
         throw error;
       }
 
-      // Adiciona o texto do prompt original na mensagem
+      // Adiciona o texto do prompt na mensagem
       messageContent.push({ text: finalUserText });
 
-      // 3. EXECUÇÃO DA CONVERSE API (Estrutura idêntica para qualquer LLM da lista)
+      // 3. EXECUÇÃO DA CONVERSE API (Sem condicionais de provedores)
       const command = new ConverseCommand({
-        modelId: modelConfig.aws_id,
+        modelId: awsModelId,
         messages: [
           {
             role: 'user',
             content: messageContent
           }
         ],
-        // O system prompt entra como uma propriedade dedicada na Converse API
         system: system_prompt ? [{ text: system_prompt }] : undefined,
         inferenceConfig: {
           maxTokens: 2048,
@@ -228,21 +172,20 @@ export class BSynapseService {
         }
       });
 
-      // Dispara a requisição usando o bedrockClient injetado do seu arquivo de configuração
       const response = await bedrockClient.send(command);
 
-      // Coleta automática e precisa de tokens para a sua auditoria
+      // Coleta automática de tokens para a telemetria
       if (response.usage) {
         tokensInput = response.usage.inputTokens || 0;
         tokensOutput = response.usage.outputTokens || 0;
       }
 
       const latencyMs = Date.now() - startTime;
-
-      // Captura o texto final retornado
+      
+      // Captura o texto retornado pelo tradutor universal do Bedrock
       const responseText = response.output?.message?.content?.[0]?.text || '';
 
-      // Grava o log com sucesso
+      // Grava o log com sucesso de execução
       await this.logRequest({
         apiKeyId: clientApiKeyId,
         endpointId,
@@ -263,7 +206,7 @@ export class BSynapseService {
       const latencyMs = Date.now() - startTime;
       const statusCode = error.statusCode || 500;
 
-      // Grava o log registrando a falha
+      // Grava o log registrando o erro que aconteceu na execução
       await this.logRequest({
         apiKeyId: clientApiKeyId,
         endpointId,

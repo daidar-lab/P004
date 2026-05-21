@@ -48,7 +48,7 @@ export function RequestLogsPage() {
       order: sortOrder,
     });
 
-    if (slugFilter) params.append('slug', slugFilter);
+    if (slugFilter) params.append('slug', slugFilter);  
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
 

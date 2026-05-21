@@ -7,7 +7,7 @@ interface ExecutionParams {
   clientApiKeyId: string;
   requestBody: any;
 }
-  
+
 export class BSynapseService {
   /**
    * Grava assincronamente os metadados e telemetria da requisição na tabela de auditoria
@@ -132,29 +132,39 @@ export class BSynapseService {
         ? interpolateTemplate(user_prompt_template, requestBody)
         : `Client Data Context:\n${JSON.stringify(requestBody, null, 2)}\n\nExecute a análise estruturada e retorne os resultados.`;
 
-      // 2. MONTAGEM DO CONTEXTO DE CONTEÚDO (Usa a flag direta do banco)
+
+        // 2. MONTAGEM DO CONTEXTO DE CONTEÚDO (Híbrido e Inteligente)
       const messageContent: any[] = [];
       const { imageBase64, mimeType } = requestBody;
 
+      // Se o modelo suportar imagem E o usuário de fato enviou uma imagem, nós processamos ela
       if (is_multimodal && imageBase64 && mimeType) {
         const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
         
         messageContent.push({
           image: {
-            format: mimeType.split('/')[1] || 'jpeg', 
+            format: mimeType.split('/')[1] || 'jpeg',
             source: {
               bytes: Buffer.from(base64Data, 'base64')
             }
           }
         });
-      } else if (is_multimodal && (!imageBase64 || !mimeType)) {
-        const error: any = new Error('Payload inválido para análise visual. Atributos imageBase64 e mimeType são obrigatórios.');
-        error.statusCode = 400;
-        throw error;
-      }
+      } 
+// REMOVIDO: O bloco 'else if' que disparava o erro 400 foi removido.
+// Se 'is_multimodal' for TRUE mas não vier imagem, o backend apenas ignora e envia o texto abaixo.
 
-      // Adiciona o texto do prompt na mensagem
-      messageContent.push({ text: finalUserText });
+// Adiciona o texto do prompt na mensagem (Sempre obrigatório)
+messageContent.push({ text: finalUserText });
+
+// Adiciona o texto do prompt na mensagem (Sempre obrigatório)
+messageContent.push({ text: finalUserText });
+
+// REMOVIDO: O bloco 'else if' que disparava o erro 400 foi removido.
+// Se 'is_multimodal' for TRUE mas não vier imagem, o backend apenas ignora e envia o texto abaixo.
+
+// Adiciona o texto do prompt na mensagem (Sempre obrigatório)
+messageContent.push({ text: finalUserText });
+
 
       // 3. EXECUÇÃO DA CONVERSE API (Sem condicionais de provedores)
       const command = new ConverseCommand({

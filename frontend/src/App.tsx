@@ -9,10 +9,11 @@ import { Activity } from 'lucide-react';
 import { RequestLogsPage } from './pages/RequestLogsPage';
 
 // Monkey patch global fetch para injetar o JWT automaticamente
+const apiUrl = import.meta.env.VITE_API_URL;
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
   const token = localStorage.getItem('token');
-  const isBackendUrl = typeof input === 'string' && input.includes('localhost:3334');
+  const isBackendUrl = typeof input === 'string' && input.includes(apiUrl);
 
   let newInit = init || {};
   if (token && isBackendUrl) {

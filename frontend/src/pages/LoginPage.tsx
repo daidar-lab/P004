@@ -38,6 +38,7 @@ export function LoginPage({ onLoginSuccess }: Readonly<LoginPageProps>) {
         throw new Error(data.error || 'Erro ao realizar login. Tente novamente.');
       }
 
+      localStorage.setItem('token', data.token);
       onLoginSuccess(data.token, data.user);
     } catch (err: any) {
       setError(err.message || 'Falha de comunicação com o servidor.');

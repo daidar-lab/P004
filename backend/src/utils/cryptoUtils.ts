@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 // Segredo do JWT lido do .env ou com fallback seguro
-const JWT_SECRET = process.env.JWT_SECRET || 'synapse-super-secret-key-12345';
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 /**
  * Cria um hash seguro usando PBKDF2 com salt aleatório.

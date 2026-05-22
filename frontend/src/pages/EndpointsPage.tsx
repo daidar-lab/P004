@@ -111,22 +111,50 @@ function EditModal({ endpoint, onClose, onSave }: EditModalProps) {
             </div>
           </div>
 
-          {/* Model selector */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">Modelo AWS Bedrock</label>
-            <div className="relative">
-              <select
-                value={form.aws_model_id}
-                onChange={e => update('aws_model_id', e.target.value as AwsModelId)}
-                className="w-full appearance-none bg-slate-950 border border-slate-700 rounded-md pl-3 pr-8 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/60 transition-colors font-mono"
-              >
-                {AWS_MODELS.map(m => (
-                  <option key={m.id} value={m.id}>{m.provider} — {m.label}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          {/* Model selector — Atualizado e Dinâmico */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">Modelo AWS Bedrock</label>
+              <div className="relative">
+                <select
+                  value={AWS_MODELS.some(m => m.id === form.aws_model_id) ? form.aws_model_id : 'custom'}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === 'custom') {
+                      update('aws_model_id', ''); // Limpa para o usuário digitar o novo ID abaixo
+                    } else {
+                      update('aws_model_id', val as any);
+                    }
+                  }}
+                  className="w-full appearance-none bg-slate-950 border border-slate-700 rounded-md pl-3 pr-8 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/60 transition-colors font-mono"
+                >
+                  {AWS_MODELS.map(m => (
+                    <option key={m.id} value={m.id}>{m.provider} — {m.label}</option>
+                  ))}
+                  <option value="custom">➕ Outro modelo (Digitar ID personalizado...)</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              </div>
             </div>
+
+            {/* Input extra que aparece apenas se o ID do modelo for personalizado ou se você escolheu a opção "Outro" */}
+            {(!AWS_MODELS.some(m => m.id === form.aws_model_id) || form.aws_model_id === '') && (
+              <div className="space-y-1.5 animate-fadeIn">
+                <label className="text-[11px] font-mono text-emerald-500 uppercase tracking-wider">Insera o ID físico oficial da AWS</label>
+                <input
+                  type="text"
+                  value={form.aws_model_id}
+                  onChange={e => update('aws_model_id', e.target.value)}
+                  placeholder="Ex: global.anthropic.claude-opus-4-7"
+                  className="w-full bg-slate-950 border border-emerald-500/30 rounded-md px-3 py-2 text-sm text-slate-100 placeholder:text-slate-700 font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                <p className="text-[10px] text-slate-500 font-mono">
+                  Você pode copiar o identificador estável diretamente do console do Amazon Bedrock.
+                </p>
+              </div>
+            )}
           </div>
+
 
           {/* Temperature slider */}
           <div className="space-y-2">

@@ -10,13 +10,15 @@ export type AwsModelId =
   | 'us.meta.llama3-3-70b-instruct-v1:0'
 
   | 'us.mistral.ministral-3-8b-instruct-v1:0'
-  | 'us.mistral.mistral-large-2407-v1:0';
+  | 'us.mistral.mistral-large-2407-v1:0'
+  | (string & {});
+
 
 export interface Endpoint {
   id: string;
   slug: string;
   name: string;
-  aws_model_id: AwsModelId; // O TypeScript agora vai validar os IDs de produção novos
+  aws_model_id: string; // O TypeScript agora vai validar os IDs de produção novos
   temperature: number;
   is_active: boolean;
   is_multimodal: boolean;

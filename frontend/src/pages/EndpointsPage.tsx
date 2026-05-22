@@ -351,8 +351,13 @@ export function EndpointsPage() {
   }
 
   function handleCreateNew() {
+    // Use window.crypto ou um fallback simples se necessário
+    const newId = typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID
+      ? window.crypto.randomUUID()
+      : Math.random().toString(36).substring(2) + Date.now().toString(36);
+
     const newEndpoint: Endpoint = {
-      id: crypto.randomUUID(),
+      id: newId,
       slug: 'novo-endpoint',
       name: 'Novo Endpoint',
       aws_model_id: 'us.amazon.nova-lite-v1:0',
@@ -362,7 +367,7 @@ export function EndpointsPage() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       current_prompt: {
-        id: crypto.randomUUID(),
+        id: crypto.randomUUID ? crypto.randomUUID() : newId + '-p', // Use o mesmo fallback aqui
         endpoint_id: '',
         system_prompt: 'Instrução principal da IA...',
         user_prompt_template: null,
@@ -374,7 +379,6 @@ export function EndpointsPage() {
     }
     setEditing(newEndpoint)
   }
-
   return (
     <div className="p-6 space-y-5">
       {/* Loading & Error States */}

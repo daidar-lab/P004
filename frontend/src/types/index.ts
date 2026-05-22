@@ -1,22 +1,28 @@
-export type AwsModelId = 
-  | 'TITAN_EXPRESS' 
-  | 'TITAN_LITE' 
-  | 'CLAUDE_HAIKU' 
-  | 'CLAUDE_SONNET' 
-  | 'LLAMA3_8B' 
-  | 'LLAMA3_70B' 
-  | 'MISTRAL_7B';
+// frontend/src/types/index.ts - Atualizado com os IDs reais do Bedrock
+export type AwsModelId =
+
+  | 'global.anthropic.claude-sonnet-4-6'
+  | 'global.anthropic.claude-haiku-4-5-20251001-v1:0'
+  | 'us.amazon.nova-lite-v1:0'
+
+  | 'us.amazon.nova-micro-v1:0'
+  | 'us.meta.llama3-1-8b-instruct-v1:0'
+  | 'us.meta.llama3-3-70b-instruct-v1:0'
+
+  | 'us.mistral.ministral-3-8b-instruct-v1:0'
+  | 'us.mistral.mistral-large-2407-v1:0';
 
 export interface Endpoint {
-  id: string
-  slug: string
-  name: string
-  aws_model_id: AwsModelId // O TypeScript vai garantir que aqui só entre os aliases novos
-  temperature: number
-  is_active: boolean
-  created_at: string
-  updated_at: string
-  current_prompt?: PromptVersion
+  id: string;
+  slug: string;
+  name: string;
+  aws_model_id: AwsModelId; // O TypeScript agora vai validar os IDs de produção novos
+  temperature: number;
+  is_active: boolean;
+  is_multimodal: boolean;
+  created_at: string;
+  updated_at: string;
+  current_prompt?: PromptVersion;
 }
 
 export interface PromptVersion {

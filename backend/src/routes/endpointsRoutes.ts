@@ -13,6 +13,7 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
         e.aws_model_id, 
         e.temperature, 
         e.is_active, 
+        e.is_multimodal,  
         e.created_at, 
         e.updated_at,
         p.id as prompt_id, 
@@ -38,6 +39,7 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
         aws_model_id: row.aws_model_id,
         temperature: Number.parseFloat(row.temperature), // Converter NUMERIC para number
         is_active: row.is_active,
+        is_multimodal: row.is_multimodal,
         created_at: row.created_at,
         updated_at: row.updated_at,
         current_prompt: row.prompt_id ? {
@@ -66,13 +68,13 @@ endpointsRouter.post('/', async (req: Request, res: Response) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    const { name, slug, aws_model_id, temperature, is_active, current_prompt } = req.body;
+    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, current_prompt } = req.body;
 
     const insertEndpoint = `
-      INSERT INTO synapse.endpoints (slug, name, aws_model_id, temperature, is_active)
-      VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at
+      INSERT INTO synapse.endpoints (slug, name, aws_model_id, temperature, is_active, is_multimodal)
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at
     `;
-    const endpRes = await client.query(insertEndpoint, [slug, name, aws_model_id, temperature, is_active]);
+    const endpRes = await client.query(insertEndpoint, [slug, name, aws_model_id, temperature, is_active, is_multimodal]);
     const newId = endpRes.rows[0].id;
 
     if (current_prompt) {
@@ -103,15 +105,15 @@ endpointsRouter.put('/:id', async (req: Request, res: Response) => {
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { name, slug, aws_model_id, temperature, is_active, current_prompt } = req.body;
+    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, current_prompt } = req.body;
 
     // 1. Atualizar dados básicos
     const updateEndpoint = `
       UPDATE synapse.endpoints 
-      SET name = $1, slug = $2, aws_model_id = $3, temperature = $4, is_active = $5, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6
+      SET name = $1, slug = $2, aws_model_id = $3, temperature = $4, is_active = $5, is_multimodal = $6, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $7
     `;
-    await client.query(updateEndpoint, [name, slug, aws_model_id, temperature, is_active, id]);
+    await client.query(updateEndpoint, [name, slug, aws_model_id, temperature, is_active, is_multimodal, id]);
 
     // 2. Lidar com o versionamento do prompt (se enviado)
     if (current_prompt) {

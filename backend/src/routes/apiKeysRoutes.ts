@@ -43,7 +43,7 @@ apiKeysRouter.post('/', async (req: Request, res: Response) => {
     const randomHex = crypto.randomBytes(16).toString('hex');
     const newApiKey = `syn_live_${randomHex}`;
     const hashedKey = crypto.createHash('sha256').update(newApiKey).digest('hex');
-    const maskedKey = `syn_live_••••••••${randomHex.slice(-4)}`;
+    const maskedKey = newApiKey;
 
     // ✅ INSERE API KEY (salva o hash em api_key e o valor mascarado em masked_key)
     const result = await db.query(

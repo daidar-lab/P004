@@ -312,9 +312,10 @@ export function EndpointsPage() {
       id: crypto.randomUUID(),
       slug: 'novo-endpoint',
       name: 'Novo Endpoint',
-      aws_model_id: 'amazon.titan-text-express-v1',
+      aws_model_id: 'us.amazon.nova-lite-v1:0', // Atualizado para o modelo padrão moderno
       temperature: 0.5,
       is_active: true,
+      is_multimodal: true, // Nova Lite suporta imagens nativamente
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       current_prompt: {

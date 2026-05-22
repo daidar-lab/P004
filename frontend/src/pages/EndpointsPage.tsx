@@ -20,6 +20,7 @@ function TemperatureBar({ value }: { value: number }) {
   )
 }
 
+
 function ModelBadge({ modelId }: { modelId: AwsModelId }) {
   const model = AWS_MODELS.find(m => m.id === modelId)
   const providerColors: Record<string, string> = {
@@ -364,7 +365,7 @@ export function EndpointsPage() {
         id: crypto.randomUUID(),
         endpoint_id: '',
         system_prompt: 'Instrução principal da IA...',
-        user_prompt_template: '',
+        user_prompt_template: null,
         version: 1,
         is_current: true,
         created_at: new Date().toISOString(),

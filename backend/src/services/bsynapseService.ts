@@ -83,17 +83,17 @@ export class BSynapseService {
         throw error;
       }
 
-      const { 
-        endpoint_id, 
-        aws_model_id, 
-        is_multimodal, 
-        temperature, 
-        system_prompt, 
-        user_prompt_template 
+      const {
+        endpoint_id,
+        aws_model_id,
+        is_multimodal,
+        temperature,
+        system_prompt,
+        user_prompt_template
       } = contextResult.rows[0];
-      
+
       endpointId = endpoint_id;
-      awsModelId = aws_model_id; 
+      awsModelId = aws_model_id;
 
       if (!awsModelId) {
         const error: any = new Error(`O endpoint [${slug}] não possui um aws_model_id válido configurado no banco.`);
@@ -133,14 +133,14 @@ export class BSynapseService {
         : `Client Data Context:\n${JSON.stringify(requestBody, null, 2)}\n\nExecute a análise estruturada e retorne os resultados.`;
 
 
-        // 2. MONTAGEM DO CONTEXTO DE CONTEÚDO (Híbrido e Inteligente)
+      // 2. MONTAGEM DO CONTEXTO DE CONTEÚDO (Híbrido e Inteligente - Sem Duplicações)
       const messageContent: any[] = [];
       const { imageBase64, mimeType } = requestBody;
 
       // Se o modelo suportar imagem E o usuário de fato enviou uma imagem, nós processamos ela
       if (is_multimodal && imageBase64 && mimeType) {
         const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-        
+
         messageContent.push({
           image: {
             format: mimeType.split('/')[1] || 'jpeg',
@@ -149,21 +149,10 @@ export class BSynapseService {
             }
           }
         });
-      } 
-// REMOVIDO: O bloco 'else if' que disparava o erro 400 foi removido.
-// Se 'is_multimodal' for TRUE mas não vier imagem, o backend apenas ignora e envia o texto abaixo.
+      }
 
-// Adiciona o texto do prompt na mensagem (Sempre obrigatório)
-messageContent.push({ text: finalUserText });
-
-// Adiciona o texto do prompt na mensagem (Sempre obrigatório)
-messageContent.push({ text: finalUserText });
-
-// REMOVIDO: O bloco 'else if' que disparava o erro 400 foi removido.
-// Se 'is_multimodal' for TRUE mas não vier imagem, o backend apenas ignora e envia o texto abaixo.
-
-// Adiciona o texto do prompt na mensagem (Sempre obrigatório)
-messageContent.push({ text: finalUserText });
+      // Adiciona o texto do prompt na mensagem apenas UMA vez (Correção do bug de duplicação)
+      messageContent.push({ text: finalUserText });
 
 
       // 3. EXECUÇÃO DA CONVERSE API (Sem condicionais de provedores)
@@ -191,7 +180,7 @@ messageContent.push({ text: finalUserText });
       }
 
       const latencyMs = Date.now() - startTime;
-      
+
       // Captura o texto retornado pelo tradutor universal do Bedrock
       const responseText = response.output?.message?.content?.[0]?.text || '';
 

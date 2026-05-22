@@ -38,11 +38,13 @@ function ModelBadge({ modelId }: { modelId: AwsModelId }) {
 
 interface EditModalProps {
   endpoint: Endpoint
+  modelosDaAws: { id: string; label: string; provider: string }[] // ◄ Adicione esta linha
   onClose: () => void
   onSave: (updated: Endpoint) => void
 }
 
-function EditModal({ endpoint, onClose, onSave }: EditModalProps) {
+// Altere a linha de declaração da função para incluir o modelosDaAws:
+function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) {
   const [form, setForm] = useState<Endpoint>({ ...endpoint })
   const [prompt, setPrompt] = useState(endpoint.current_prompt?.system_prompt ?? '')
   const [userTemplate, setUserTemplate] = useState(endpoint.current_prompt?.user_prompt_template ?? '')
@@ -111,31 +113,40 @@ function EditModal({ endpoint, onClose, onSave }: EditModalProps) {
             </div>
           </div>
 
-          {/* Model selector — Atualizado e Dinâmico */}
+          {/* Model selector — Atualizado, Dinâmico e Integrado com a API da AWS */}
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">Modelo AWS Bedrock</label>
               <div className="relative">
                 <select
-                  value={AWS_MODELS.some(m => m.id === form.aws_model_id) ? form.aws_model_id : 'custom'}
+                  // Ajustado para aceitar tanto os locais quanto os vindos da AWS antes de marcar 'custom'
+                  value={AWS_MODELS.some(m => m.id === form.aws_model_id) || modelosDaAws.some(m => m.id === form.aws_model_id) ? form.aws_model_id : 'custom'}
                   onChange={e => {
                     const val = e.target.value;
                     if (val === 'custom') {
-                      update('aws_model_id', ''); // Limpa para o usuário digitar o novo ID abaixo
+                      update('aws_model_id', '' as any); // Limpa para o usuário digitar o novo ID abaixo
                     } else {
                       update('aws_model_id', val as any);
                     }
                   }}
                   className="w-full appearance-none bg-slate-950 border border-slate-700 rounded-md pl-3 pr-8 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/60 transition-colors font-mono"
                 >
+                  {/* 1. Suas opções estáticas locais atuais (Mantidas idênticas) */}
                   {AWS_MODELS.map(m => (
                     <option key={m.id} value={m.id}>{m.provider} — {m.label}</option>
                   ))}
+
+                  {/* 2. NOVA ADIÇÃO: Opções carregadas em tempo real direto da AWS Cloud */}
+                  {modelosDaAws.filter(m => !AWS_MODELS.some(local => local.id === m.id)).map(m => (
+                    <option key={m.id} value={m.id}>☁️ {m.provider} — {m.label}</option>
+                  ))}
+
                   <option value="custom">➕ Outro modelo (Digitar ID personalizado...)</option>
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
             </div>
+
 
             {/* Input extra que aparece apenas se o ID do modelo for personalizado ou se você escolheu a opção "Outro" */}
             {(!AWS_MODELS.some(m => m.id === form.aws_model_id) || form.aws_model_id === '') && (
@@ -278,16 +289,26 @@ export function EndpointsPage() {
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [modelosDaAws, setModelosDaAws] = useState<{ id: string; label: string; provider: string }[]>([]);
 
   useEffect(() => {
     async function fetchEndpoints() {
       try {
+        // 1. Sua busca de endpoints atual (Mantida idêntica)
         const response = await fetch('http://localhost:3334/v1/endpoints');
         if (!response.ok) {
           throw new Error('Falha ao buscar endpoints');
         }
         const data = await response.json();
         setEndpoints(data);
+
+        // 2. NOVA ADIÇÃO: Busca o catálogo em tempo real da AWS Bedrock
+        const responseModels = await fetch('http://localhost:3334/v1/endpoints/available-models');
+        if (responseModels.ok) {
+          const dataModels = await responseModels.json();
+          setModelosDaAws(dataModels); // Salva os modelos retornados no novo estado
+        }
+
       } catch (err: any) {
         setError(err.message || 'Erro desconhecido');
       } finally {
@@ -494,10 +515,12 @@ export function EndpointsPage() {
       {editing && (
         <EditModal
           endpoint={editing}
+          modelosDaAws={modelosDaAws} // ◄ Injeta a lista dinâmica para dentro do modal
           onClose={() => setEditing(null)}
           onSave={handleSave}
         />
       )}
+
     </div>
   )
 }

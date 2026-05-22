@@ -1,28 +1,73 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../config/database';
+import { BedrockClient, ListFoundationModelsCommand } from '@aws-sdk/client-bedrock';
 
 export const endpointsRouter = Router();
+const discoveryClient = new BedrockClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
+// 1. Rota para listar e traduzir os modelos reais da AWS em tempo real
+endpointsRouter.get('/available-models', async (req: Request, res: Response) => {
+  try {
+    // Altere esta parte dentro da rota '/available-models':
+    const command = new ListFoundationModelsCommand({
+      byOutputModality: 'TEXT' // ◄ PROPRIEDADE CORRETA: Filtra modelos que respondem em texto/chat
+    });
+
+
+    const response = await discoveryClient.send(command);
+
+    // Mapeia e limpa o retorno da AWS aplicando o tradutor inteligente
+    const models = (response.modelSummaries || [])
+      .filter(m => m.modelLifecycle?.status === 'ACTIVE')
+      .map(m => {
+        const rawId = m.modelId || '';
+        let finalId = rawId;
+
+        // Tradutor de infraestrutura: Converte IDs da AWS no formato dinâmico esperado pelo seu sistema
+        if (rawId.includes('claude-3-5-sonnet') || rawId.includes('claude-v3-5-sonnet') || rawId.includes('claude-4')) {
+          finalId = 'global.anthropic.claude-sonnet-4-6';
+        } else if (rawId.includes('claude-3-5-haiku') || rawId.includes('claude-v3-5-haiku') || rawId.includes('claude-4-5')) {
+          finalId = 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
+        } else if (rawId.includes('nova-lite') || (rawId.includes('titan') && rawId.includes('express'))) {
+          finalId = 'us.amazon.nova-lite-v1:0';
+        } else if (rawId.includes('nova-micro') || (rawId.includes('titan') && rawId.includes('lite'))) {
+          finalId = 'us.amazon.nova-micro-v1:0';
+        } else if (rawId.includes('llama') && rawId.includes('8b')) {
+          finalId = 'us.meta.llama3-1-8b-instruct-v1:0';
+        } else if (rawId.includes('llama') && rawId.includes('70b')) {
+          finalId = 'us.meta.llama3-3-70b-instruct-v1:0';
+        } else if (rawId.includes('ministral') || (rawId.includes('mistral') && rawId.includes('7b'))) {
+          finalId = 'us.mistral.ministral-3-8b-instruct-v1:0';
+        } else if (rawId.includes('mistral-large')) {
+          finalId = 'us.mistral.mistral-large-2407-v1:0';
+        }
+
+        return {
+          id: finalId,
+          label: m.modelName || rawId,
+          provider: m.providerName || 'AWS'
+        };
+      });
+
+    // Elimina duplicados gerados pelo agrupamento inteligente
+    const uniqueModels = models.filter((value, index, self) =>
+      index === self.findIndex((t) => t.id === value.id)
+    );
+
+    return res.status(200).json(uniqueModels);
+  } catch (error) {
+    console.error('[ERRO NA ROTA /v1/endpoints/available-models]:', error);
+    return res.status(500).json({ error: 'Erro interno ao buscar modelos disponíveis' });
+  }
+});
+
+// 2. Listar Endpoints cadastrados
 endpointsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const query = `
       SELECT 
-        e.id, 
-        e.slug, 
-        e.name, 
-        e.aws_model_id, 
-        e.temperature, 
-        e.is_active, 
-        e.is_multimodal,  
-        e.created_at, 
-        e.updated_at,
-        p.id as prompt_id, 
-        p.system_prompt, 
-        p.user_prompt_template, 
-        p.version, 
-        p.is_current, 
-        p.created_by, 
-        p.created_at as prompt_created_at
+        e.id, e.slug, e.name, e.aws_model_id, e.temperature, e.is_active, e.is_multimodal, e.created_at, e.updated_at,
+        p.id as prompt_id, p.system_prompt, p.user_prompt_template, p.version, p.is_current, p.created_by, p.created_at as prompt_created_at
       FROM synapse.endpoints e
       LEFT JOIN synapse.prompts_history p ON p.endpoint_id = e.id AND p.is_current = TRUE
       ORDER BY e.created_at DESC;
@@ -30,14 +75,13 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
 
     const result = await db.query(query);
 
-    // Mapear os resultados para bater com a interface do Frontend
     const formattedData = result.rows.map(row => {
-      const endpoint = {
+      return {
         id: row.id,
         slug: row.slug,
         name: row.name,
         aws_model_id: row.aws_model_id,
-        temperature: Number.parseFloat(row.temperature), // Converter NUMERIC para number
+        temperature: Number.parseFloat(row.temperature),
         is_active: row.is_active,
         is_multimodal: row.is_multimodal,
         created_at: row.created_at,
@@ -53,7 +97,6 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
           created_by: row.created_by
         } : undefined
       };
-      return endpoint;
     });
 
     return res.status(200).json(formattedData);

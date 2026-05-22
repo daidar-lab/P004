@@ -1,3 +1,11 @@
+# Pastas de Dependências e Builds (Aplica para front e back)
+node_modules/
+dist/
+dist-ssr/
+build/
+.cache/
+
+# Logs do sistema
 # Logs
 logs
 *.log
@@ -7,18 +15,24 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# 🔐 SEGURANÇA: Bloqueia TODOS os arquivos .env em qualquer pasta
+.env
+.env.*
+!.env.example
+
+# Arquivos locais e temporários
 *.local
 
-# Editor directories and files
+# Editor directories and files (VS Code, JetBrains, etc)
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Arquivos do Sistema Operacional
+.DS_Store
+Thumbs.db

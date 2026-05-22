@@ -6,10 +6,10 @@ export function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [isCreating, setIsCreating] = useState(false);
   const [newClientName, setNewClientName] = useState('');
-  
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,7 +18,8 @@ export function ApiKeysPage() {
 
   async function fetchKeys() {
     try {
-      const response = await fetch('http://localhost:3334/v1/apikeys');
+      // CORRIGIDO: URL dinâmica com crases
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/apikeys`);
       if (!response.ok) throw new Error('Falha ao buscar chaves de API');
       const data = await response.json();
       setKeys(data);
@@ -34,15 +35,16 @@ export function ApiKeysPage() {
     if (!newClientName.trim()) return;
 
     try {
-      const response = await fetch('http://localhost:3334/v1/apikeys', {
+      // CORRIGIDO: URL dinâmica com crases também no POST
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/apikeys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_name: newClientName }),
       });
-      
+
       if (!response.ok) throw new Error('Erro ao gerar chave');
       const newKey = await response.json();
-      
+
       setKeys([newKey, ...keys]);
       setNewClientName('');
       setIsCreating(false);
@@ -50,17 +52,16 @@ export function ApiKeysPage() {
       alert(err.message);
     }
   }
-
   async function toggleStatus(id: string, currentStatus: boolean) {
     try {
-      const response = await fetch(`http://localhost:3334/v1/apikeys/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/apikeys/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !currentStatus }),
       });
-      
+
       if (!response.ok) throw new Error('Erro ao atualizar status');
-      
+
       setKeys(keys.map(k => k.id === id ? { ...k, is_active: !currentStatus } : k));
     } catch (err: any) {
       alert(err.message);
@@ -84,7 +85,7 @@ export function ApiKeysPage() {
           </h1>
           <p className="text-xs text-slate-500 mt-1">Gerencie os tokens de acesso para os aplicativos clientes. </p>
         </div>
-        <button 
+        <button
           onClick={() => setIsCreating(true)}
           className="flex items-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-md transition-all"
         >
@@ -112,14 +113,14 @@ export function ApiKeysPage() {
               className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/60 transition-colors"
             />
           </div>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setIsCreating(false)}
             className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200"
           >
             Cancelar
           </button>
-          <button 
+          <button
             type="submit"
             disabled={!newClientName.trim()}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold rounded-md border border-slate-700 transition-all"
@@ -144,19 +145,18 @@ export function ApiKeysPage() {
 
           {keys.map(k => (
             <div key={k.id} className={`flex items-center justify-between p-4 rounded-lg border bg-slate-900/60 transition-all ${k.is_active ? 'border-slate-800/80 hover:border-slate-700' : 'border-rose-900/30 bg-slate-900/40 opacity-75'}`}>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <h3 className="text-sm font-medium text-slate-100">{k.client_name}</h3>
-                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border ${
-                    k.is_active
-                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                      : 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-                  }`}>
+                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border ${k.is_active
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                    : 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+                    }`}>
                     {k.is_active ? 'Ativo' : 'Revogado'}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <code className="text-xs font-mono px-2 py-1 bg-slate-950 border border-slate-800 rounded text-amber-300">
                     {k.api_key}
@@ -184,11 +184,10 @@ export function ApiKeysPage() {
 
                 <button
                   onClick={() => toggleStatus(k.id, k.is_active)}
-                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md text-[10px] font-mono transition-all ${
-                    k.is_active
-                      ? 'text-slate-400 hover:text-rose-400'
-                      : 'text-slate-500 hover:text-emerald-400'
-                  }`}
+                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md text-[10px] font-mono transition-all ${k.is_active
+                    ? 'text-slate-400 hover:text-rose-400'
+                    : 'text-slate-500 hover:text-emerald-400'
+                    }`}
                 >
                   {k.is_active ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
                   {k.is_active ? 'Desativar' : 'Reativar'}

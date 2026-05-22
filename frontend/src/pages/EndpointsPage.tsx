@@ -38,12 +38,11 @@ function ModelBadge({ modelId }: { modelId: AwsModelId }) {
 
 interface EditModalProps {
   endpoint: Endpoint
-  modelosDaAws: { id: string; label: string; provider: string }[] // ◄ Adicione esta linha
+  modelosDaAws: { id: string; label: string; provider: string }[]
   onClose: () => void
   onSave: (updated: Endpoint) => void
 }
 
-// Altere a linha de declaração da função para incluir o modelosDaAws:
 function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) {
   const [form, setForm] = useState<Endpoint>({ ...endpoint })
   const [prompt, setPrompt] = useState(endpoint.current_prompt?.system_prompt ?? '')
@@ -113,30 +112,27 @@ function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) 
             </div>
           </div>
 
-          {/* Model selector — Atualizado, Dinâmico e Integrado com a API da AWS */}
+          {/* Model selector */}
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">Modelo AWS Bedrock</label>
               <div className="relative">
                 <select
-                  // Ajustado para aceitar tanto os locais quanto os vindos da AWS antes de marcar 'custom'
                   value={AWS_MODELS.some(m => m.id === form.aws_model_id) || modelosDaAws.some(m => m.id === form.aws_model_id) ? form.aws_model_id : 'custom'}
                   onChange={e => {
                     const val = e.target.value;
                     if (val === 'custom') {
-                      update('aws_model_id', '' as any); // Limpa para o usuário digitar o novo ID abaixo
+                      update('aws_model_id', '' as any);
                     } else {
                       update('aws_model_id', val as any);
                     }
                   }}
                   className="w-full appearance-none bg-slate-950 border border-slate-700 rounded-md pl-3 pr-8 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/60 transition-colors font-mono"
                 >
-                  {/* 1. Suas opções estáticas locais atuais (Mantidas idênticas) */}
                   {AWS_MODELS.map(m => (
                     <option key={m.id} value={m.id}>{m.provider} — {m.label}</option>
                   ))}
 
-                  {/* 2. NOVA ADIÇÃO: Opções carregadas em tempo real direto da AWS Cloud */}
                   {modelosDaAws.filter(m => !AWS_MODELS.some(local => local.id === m.id)).map(m => (
                     <option key={m.id} value={m.id}>☁️ {m.provider} — {m.label}</option>
                   ))}
@@ -147,8 +143,6 @@ function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) 
               </div>
             </div>
 
-
-            {/* Input extra que aparece apenas se o ID do modelo for personalizado ou se você escolheu a opção "Outro" */}
             {(!AWS_MODELS.some(m => m.id === form.aws_model_id) || form.aws_model_id === '') && (
               <div className="space-y-1.5 animate-fadeIn">
                 <label className="text-[11px] font-mono text-emerald-500 uppercase tracking-wider">Insera o ID físico oficial da AWS</label>
@@ -165,7 +159,6 @@ function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) 
               </div>
             )}
           </div>
-
 
           {/* Temperature slider */}
           <div className="space-y-2">
@@ -294,19 +287,19 @@ export function EndpointsPage() {
   useEffect(() => {
     async function fetchEndpoints() {
       try {
-        // 1. Sua busca de endpoints atual (Mantida idêntica)
-        const response = await fetch('http://localhost:3334/v1/endpoints');
+        // CORRIGIDO: Modificado para ler do .env usando crases
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/endpoints`);
         if (!response.ok) {
           throw new Error('Falha ao buscar endpoints');
         }
         const data = await response.json();
         setEndpoints(data);
 
-        // 2. NOVA ADIÇÃO: Busca o catálogo em tempo real da AWS Bedrock
-        const responseModels = await fetch('http://localhost:3334/v1/endpoints/available-models');
+        // CORRIGIDO: Modificado para ler do .env usando crases
+        const responseModels = await fetch(`${import.meta.env.VITE_API_URL}/v1/endpoints/available-models`);
         if (responseModels.ok) {
           const dataModels = await responseModels.json();
-          setModelosDaAws(dataModels); // Salva os modelos retornados no novo estado
+          setModelosDaAws(dataModels);
         }
 
       } catch (err: any) {
@@ -327,11 +320,12 @@ export function EndpointsPage() {
 
   async function handleSave(updated: Endpoint) {
     try {
-      // Diferencia se é criação ou edição verificando se o ID é o UUID mockado 'novo-endpoint' (ou se ele não existe na lista).
-      // Mas para simplificar, já que geramos um UUID aleatório pro novo, vamos checar se ele já existe na lista.
       const isNew = !endpoints.some(e => e.id === updated.id);
 
-      const url = isNew ? 'http://localhost:3334/v1/endpoints' : `http://localhost:3334/v1/endpoints/${updated.id}`;
+      // CORRIGIDO: Substituídas as URLs fixas por variáveis com crases
+      const url = isNew
+        ? `${import.meta.env.VITE_API_URL}/v1/endpoints`
+        : `${import.meta.env.VITE_API_URL}/v1/endpoints/${updated.id}`;
       const method = isNew ? 'POST' : 'PUT';
 
       const res = await fetch(url, {
@@ -345,9 +339,8 @@ export function EndpointsPage() {
         throw new Error(errorData.error || 'Erro ao salvar endpoint');
       }
 
-      // Se for novo e o backend gerou um ID (ou versionamento mudou), 
-      // a forma mais segura é fazer um refetch de todos os endpoints para ter o dado real do banco
-      const getRes = await fetch('http://localhost:3334/v1/endpoints');
+      // CORRIGIDO: Modificado o refetch final para ler do .env usando crases
+      const getRes = await fetch(`${import.meta.env.VITE_API_URL}/v1/endpoints`);
       const data = await getRes.json();
       setEndpoints(data);
 
@@ -361,10 +354,10 @@ export function EndpointsPage() {
       id: crypto.randomUUID(),
       slug: 'novo-endpoint',
       name: 'Novo Endpoint',
-      aws_model_id: 'us.amazon.nova-lite-v1:0', // Atualizado para o modelo padrão moderno
+      aws_model_id: 'us.amazon.nova-lite-v1:0',
       temperature: 0.5,
       is_active: true,
-      is_multimodal: true, // Nova Lite suporta imagens nativamente
+      is_multimodal: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       current_prompt: {
@@ -515,7 +508,7 @@ export function EndpointsPage() {
       {editing && (
         <EditModal
           endpoint={editing}
-          modelosDaAws={modelosDaAws} // ◄ Injeta a lista dinâmica para dentro do modal
+          modelosDaAws={modelosDaAws}
           onClose={() => setEditing(null)}
           onSave={handleSave}
         />

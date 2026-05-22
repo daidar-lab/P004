@@ -21,11 +21,13 @@ export function RequestLogsPage() {
 
   // 1. Busca a lista de endpoints cadastrados para preencher o select por nome
   useEffect(() => {
-    fetch('http://localhost:3334/v1/endpoints')
+    // Trocamos as aspas simples por CRASES e usamos a variável do ambiente
+    fetch(`${import.meta.env.VITE_API_URL}/v1/endpoints`)
       .then(res => res.json())
       .then(data => {
         // Log para checagem no Console (F12) se necessário
         console.log("Endpoints carregados com sucesso:", data);
+        // ... resto do seu código
 
         // Garante a extração da lista caso venha envelopada em propriedades como .endpoints ou .data
         const list = Array.isArray(data) ? data : (data.endpoints || data.data || []);
@@ -48,11 +50,11 @@ export function RequestLogsPage() {
       order: sortOrder,
     });
 
-    if (slugFilter) params.append('slug', slugFilter);  
+    if (slugFilter) params.append('slug', slugFilter);
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
 
-    fetch(`http://localhost:3334/v1/request-logs?${params.toString()}`, {
+    fetch(`${import.meta.env.VITE_API_URL}/v1/request-logs?${params.toString()}`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
       },

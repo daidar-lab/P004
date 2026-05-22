@@ -76,7 +76,7 @@ export function Layout({ children, currentPage, onNavigate, user, onLogout }: Re
 
     setPwLoading(true);
     try {
-      const res = await fetch('http://localhost:3334/v1/auth/change-password', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/auth/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword: pwForm.current, newPassword: pwForm.newPw }),

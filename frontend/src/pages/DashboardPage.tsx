@@ -9,7 +9,7 @@ export function DashboardPage() {
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const response = await fetch('http://localhost:3334/v1/dashboard/stats');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/dashboard/stats`);
         if (!response.ok) {
           throw new Error('Falha ao buscar estatísticas do dashboard');
         }

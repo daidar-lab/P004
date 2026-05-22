@@ -19,8 +19,9 @@ dotenv.config();
 
 const app = express();
 
+// Configuração do CORS dinâmica para suportar local e produção (AWS)
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
 }));
@@ -28,13 +29,13 @@ app.use(cors({
 app.disable('x-powered-by');
 app.use(express.json());
 
+// Definição da porta (Lê a porta da AWS ou usa a 3334 como padrão local)
 const PORT = process.env.PORT || 3334;
 
 // ✅ Health Check
 app.get('/health', (req, res) => {
   res.json({ status: 'B/Synapse Engine operacional!' });
 });
-
 
 // ✅ ROTA DE AUTENTICAÇÃO DE USUÁRIOS (LOGIN & PERFIL)
 app.use('/v1/auth', authRouter);
@@ -49,15 +50,13 @@ app.use('/v1/request-logs', userAuth, requestLogsRouter);
 app.use('/v1/metrics', userAuth, metricsRouter);
 app.use('/v1/dashboard', userAuth, dashboardRouter);
 
-
 // 🔐 MIDDLEWARE DE SEGURANÇA PARA API CLIENT (SÓ DAQUI PRA BAIXO)
 app.use(validateApiKey);
-
 
 // ✅ ROTAS PROTEGIDAS PARA INTEGRAÇÃO EXTERNA (PRECISAM DE API KEY)
 app.use('/v1/analyze', analyzeRouter);
 
-
+// Inicialização do servidor (Sempre na última linha do arquivo)
 app.listen(PORT, () => {
   console.log(`[B/SYNAPSE] Servidor rodando na porta ${PORT}`);
 });

@@ -66,7 +66,7 @@ function App() {
     }
 
     // Faz chamada ao me para validar o token no backend
-    fetch('http://localhost:3334/v1/auth/me')
+    fetch(`${import.meta.env.VITE_API_URL}/v1/auth/me`)
       .then(async (res) => {
         if (!res.ok) throw new Error('Token inválido');
         const data = await res.json();

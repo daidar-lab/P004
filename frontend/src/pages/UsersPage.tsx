@@ -24,10 +24,10 @@ export function UsersPage({ currentUser }: Readonly<UsersPageProps>) {
   useEffect(() => {
     fetchUsers();
   }, []);
-
   async function fetchUsers() {
     try {
-      const response = await fetch('http://localhost:3334/v1/users');
+      // Trocamos a URL fixa pela variável dinâmica com crases
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/users`);
       if (!response.ok) throw new Error('Falha ao buscar usuários');
       const data = await response.json();
       setUsers(data);
@@ -65,8 +65,8 @@ export function UsersPage({ currentUser }: Readonly<UsersPageProps>) {
 
     try {
       const url = editingUser
-        ? `http://localhost:3334/v1/users/${editingUser.id}`
-        : 'http://localhost:3334/v1/users';
+        ? `${import.meta.env.VITE_API_URL}/v1/users/${editingUser.id}`
+        : `${import.meta.env.VITE_API_URL}/v1/users`;
 
       const method = editingUser ? 'PUT' : 'POST';
 
@@ -109,7 +109,7 @@ export function UsersPage({ currentUser }: Readonly<UsersPageProps>) {
     if (!confirm('Tem certeza de que deseja remover este usuário?')) return;
 
     try {
-      const response = await fetch(`http://localhost:3334/v1/users/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/users/${id}`, {
         method: 'DELETE',
       });
       const data = await response.json();
@@ -287,8 +287,8 @@ export function UsersPage({ currentUser }: Readonly<UsersPageProps>) {
                       onClick={() => handleDelete(u.id)}
                       disabled={isMe}
                       className={`p-1.5 rounded transition-colors ${isMe
-                          ? 'text-slate-800 cursor-not-allowed'
-                          : 'text-slate-500 hover:text-rose-400 hover:bg-slate-800 cursor-pointer'
+                        ? 'text-slate-800 cursor-not-allowed'
+                        : 'text-slate-500 hover:text-rose-400 hover:bg-slate-800 cursor-pointer'
                         }`}
                       title={isMe ? 'Não é possível excluir seu próprio usuário' : 'Excluir usuário'}
                     >

@@ -19,7 +19,8 @@ lerna-debug.log*
 .env
 .env.*
 !.env.example
-
+./.env*
+*.env.*
 # Arquivos locais e temporários
 *.local
 

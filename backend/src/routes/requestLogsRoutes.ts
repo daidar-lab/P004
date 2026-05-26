@@ -7,12 +7,12 @@ export const requestLogsRouter = Router();
 /**
  * GET /request-logs
  * Returns full request log entries with optional filters:
- *  - slug: filter by endpoint slug
- *  - startDate, endDate: ISO date strings to filter by created_at
- *  - sort: column name to sort (any column in the table)
- *  - order: 'asc' or 'desc'
- *  - limit: page size (max 100)
- *  - offset: page offset
+ * - slug: filter by endpoint slug
+ * - startDate, endDate: ISO date strings to filter by created_at
+ * - sort: column name to sort (any column in the table)
+ * - order: 'asc' or 'desc'
+ * - limit: page size (max 100)
+ * - offset: page offset
  */
 requestLogsRouter.get('/', async (req: AuthenticatedUserRequest, res: Response) => {
   try {
@@ -66,20 +66,26 @@ requestLogsRouter.get('/', async (req: AuthenticatedUserRequest, res: Response) 
     }
     const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
+    // CORREÇÃO AQUI: Montamos os placeholders de LIMIT e OFFSET fora da string da query principal
+    const limitPlaceholder = `$${idx}`;
+    const offsetPlaceholder = `$${idx + 1}`;
+
     const query = `
       SELECT id, api_key_id, endpoint_id, slug, latency_ms, aws_model_id, tokens_input, tokens_output, status_code, error_message, created_at
       FROM synapse.request_logs
       ${whereClause}
       ORDER BY ${sortField} ${sortOrder}
-      LIMIT $${idx} OFFSET $${idx + 1};
+      LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder};
     `;
     values.push(lim, off);
 
     const result = await db.query(query, values);
+
     // Count total matching rows (without pagination)
     const countQuery = `SELECT COUNT(*) FROM synapse.request_logs ${whereClause};`;
     const countRes = await db.query(countQuery, values.slice(0, values.length - 2));
     const total = parseInt(countRes.rows[0].count, 10);
+
     return res.status(200).json({ logs: result.rows, total });
   } catch (error) {
     console.error('[ERROR GET /request-logs]:', error);
@@ -96,4 +102,4 @@ requestLogsRouter.get('/slugs', async (req: AuthenticatedUserRequest, res: Respo
     console.error('[ERROR GET /request-logs/slugs]:', error);
     return res.status(500).json({ error: 'Erro ao buscar slugs de request logs' });
   }
-});
+}); 

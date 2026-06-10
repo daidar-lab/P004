@@ -5,8 +5,9 @@ import { EndpointsPage } from './pages/EndpointsPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { UsersPage } from './pages/UsersPage';
 import { LoginPage } from './pages/LoginPage';
-import { Activity } from 'lucide-react';
+import { Activity, FileText } from 'lucide-react';
 import { RequestLogsPage } from './pages/RequestLogsPage';
+import { DocumentJobsPage } from './pages/DocumentJobsPage';
 
 // Monkey patch global fetch para injetar o JWT automaticamente
 const apiUrl = import.meta.env.VITE_API_URL;
@@ -39,7 +40,7 @@ globalThis.fetch = async (input, init) => {
   return response;
 };
 
-export type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users' | 'request-logs';
+export type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users' | 'request-logs' | 'document-jobs';
 
 export interface User {
   id: string;
@@ -127,6 +128,7 @@ function App() {
       {currentPage === 'endpoints' && <EndpointsPage />}
       {currentPage === 'api-keys' && <ApiKeysPage />}
       {currentPage === 'request-logs' && <RequestLogsPage />}
+      {currentPage === 'document-jobs' && <DocumentJobsPage />}
       {currentPage === 'users' && user.role === 'admin' && <UsersPage currentUser={user} />}
     </Layout>
   );

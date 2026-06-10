@@ -22,6 +22,8 @@ export interface Endpoint {
   temperature: number;
   is_active: boolean;
   is_multimodal: boolean;
+  supports_textract: boolean;
+  endpoint_type: 'bedrock' | 'textract';
   created_at: string;
   updated_at: string;
   current_prompt?: PromptVersion;

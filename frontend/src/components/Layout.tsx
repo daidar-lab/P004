@@ -12,10 +12,11 @@ import {
   EyeOff,
   X,
   Lock,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react'
 
-type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users' | 'request-logs'
+type Page = 'dashboard' | 'endpoints' | 'api-keys' | 'users' | 'request-logs' | 'document-jobs'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -30,6 +31,7 @@ const navItems = [
   { id: 'endpoints' as Page, label: 'Endpoints', icon: Zap },
   { id: 'api-keys' as Page, label: 'Chaves de API', icon: KeyRound },
   { id: 'request-logs' as Page, label: 'Logs de Requisições', icon: Activity },
+  { id: 'document-jobs' as Page, label: 'Jobs de Documentos', icon: FileText },
 ]
 
 export function Layout({ children, currentPage, onNavigate, user, onLogout }: Readonly<LayoutProps>) {

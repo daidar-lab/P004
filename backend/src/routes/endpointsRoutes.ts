@@ -66,7 +66,7 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const query = `
       SELECT 
-        e.id, e.slug, e.name, e.aws_model_id, e.temperature, e.is_active, e.is_multimodal, e.created_at, e.updated_at,
+        e.id, e.slug, e.name, e.aws_model_id, e.temperature, e.is_active, e.is_multimodal, e.supports_textract, e.endpoint_type, e.created_at, e.updated_at,
         p.id as prompt_id, p.system_prompt, p.user_prompt_template, p.version, p.is_current, p.created_by, p.created_at as prompt_created_at
       FROM synapse.endpoints e
       LEFT JOIN synapse.prompts_history p ON p.endpoint_id = e.id AND p.is_current = TRUE
@@ -84,6 +84,8 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
         temperature: Number.parseFloat(row.temperature),
         is_active: row.is_active,
         is_multimodal: row.is_multimodal,
+        supports_textract: row.supports_textract,
+        endpoint_type: row.endpoint_type || 'bedrock',
         created_at: row.created_at,
         updated_at: row.updated_at,
         current_prompt: row.prompt_id ? {
@@ -111,13 +113,13 @@ endpointsRouter.post('/', async (req: Request, res: Response) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, current_prompt } = req.body;
+    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type, current_prompt } = req.body;
 
     const insertEndpoint = `
-      INSERT INTO synapse.endpoints (slug, name, aws_model_id, temperature, is_active, is_multimodal)
-      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at
+      INSERT INTO synapse.endpoints (slug, name, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at, updated_at
     `;
-    const endpRes = await client.query(insertEndpoint, [slug, name, aws_model_id, temperature, is_active, is_multimodal]);
+    const endpRes = await client.query(insertEndpoint, [slug, name, aws_model_id, temperature, is_active, is_multimodal, supports_textract || false, endpoint_type || 'bedrock']);
     const newId = endpRes.rows[0].id;
 
     if (current_prompt) {
@@ -148,15 +150,15 @@ endpointsRouter.put('/:id', async (req: Request, res: Response) => {
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, current_prompt } = req.body;
+    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type, current_prompt } = req.body;
 
     // 1. Atualizar dados básicos
     const updateEndpoint = `
       UPDATE synapse.endpoints 
-      SET name = $1, slug = $2, aws_model_id = $3, temperature = $4, is_active = $5, is_multimodal = $6, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $7
+      SET name = $1, slug = $2, aws_model_id = $3, temperature = $4, is_active = $5, is_multimodal = $6, supports_textract = $7, endpoint_type = $8, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $9
     `;
-    await client.query(updateEndpoint, [name, slug, aws_model_id, temperature, is_active, is_multimodal, id]);
+    await client.query(updateEndpoint, [name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract || false, endpoint_type || 'bedrock', id]);
 
     // 2. Lidar com o versionamento do prompt (se enviado)
     if (current_prompt) {

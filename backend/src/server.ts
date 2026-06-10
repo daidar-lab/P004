@@ -14,6 +14,7 @@ import { requestLogsRouter } from './routes/requestLogsRoutes';
 import { dashboardRouter } from './routes/dashboardRoutes';
 import { endpointsRouter } from './routes/endpointsRoutes';
 import { metricsRouter } from './routes/metricsRoutes';
+import { documentJobsRouter } from './routes/documentJobsRoutes';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/v1/endpoints', userAuth, endpointsRouter);
 app.use('/v1/request-logs', userAuth, requestLogsRouter);
 app.use('/v1/metrics', userAuth, metricsRouter);
 app.use('/v1/dashboard', userAuth, dashboardRouter);
+app.use('/v1/document-jobs', userAuth, documentJobsRouter);
 
 // 🔐 MIDDLEWARE DE SEGURANÇA PARA API CLIENT (SÓ DAQUI PRA BAIXO)
 app.use(validateApiKey);
@@ -56,7 +58,18 @@ app.use(validateApiKey);
 // ✅ ROTAS PROTEGIDAS PARA INTEGRAÇÃO EXTERNA (PRECISAM DE API KEY)
 app.use('/v1/analyze', analyzeRouter);
 
-// Inicialização do servidor (Sempre na última linha do arquivo)
-app.listen(PORT, () => {
+// Captura a instância de execução do HTTP Server do Node.js
+const server = app.listen(PORT, () => {
   console.log(`[B/SYNAPSE] Servidor rodando na porta ${PORT}`);
 });
+
+// 🛠️ BLINDAGEM DE TIMEOUTS PARA PROCESSAMENTO SÍNCRONO DO TEXTRACT
+// Define o limite de tempo limite global para 5 minutos (300000 ms) 
+// Isso garante que os seus 160 segundos de polling rodem sem interrupções do Node.
+server.timeout = 300000; 
+
+// Define o tempo limite para o recebimento dos headers HTTP
+server.headersTimeout = 305000; 
+
+// Garante que a conexão TCP fique aberta tempo suficiente para streams e arquivos pesados
+server.keepAliveTimeout = 300000;

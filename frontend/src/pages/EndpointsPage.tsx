@@ -55,11 +55,15 @@ function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) 
   const [form, setForm] = useState<Endpoint>({ 
     ...endpoint, 
     endpoint_type: endpoint.endpoint_type || 'bedrock',
-    supports_textract: endpoint.endpoint_type === 'textract' ? true : (endpoint.supports_textract || false)
+    supports_textract: endpoint.endpoint_type === 'textract' ? true : (endpoint.supports_textract || false),
+    textract_queries: endpoint.textract_queries || []
   })
   const [prompt, setPrompt] = useState(endpoint.current_prompt?.system_prompt ?? '')
   const [userTemplate, setUserTemplate] = useState(endpoint.current_prompt?.user_prompt_template ?? '')
   const [dirty, setDirty] = useState(false)
+  const [activeTab, setActiveTab] = useState<'config' | 'queries'>('config')
+  const [newQueryAlias, setNewQueryAlias] = useState('')
+  const [newQueryText, setNewQueryText] = useState('')
 
   function update<K extends keyof Endpoint>(key: K, val: Endpoint[K]) {
     setForm(f => {
@@ -70,6 +74,37 @@ function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) 
       return next
     })
     setDirty(true)
+  }
+
+  function addQuery() {
+    if (!newQueryAlias.trim() || !newQueryText.trim()) return
+    const nextQueries = [
+      ...(form.textract_queries || []),
+      {
+        query_alias: newQueryAlias.trim(),
+        query_text: newQueryText.trim(),
+        sort_order: (form.textract_queries?.length || 0) + 1,
+        is_active: true
+      }
+    ]
+    update('textract_queries', nextQueries)
+    setNewQueryAlias('')
+    setNewQueryText('')
+  }
+
+  function removeQuery(index: number) {
+    const nextQueries = (form.textract_queries || []).filter((_, idx) => idx !== index)
+    update('textract_queries', nextQueries)
+  }
+
+  function toggleQueryActive(index: number) {
+    const nextQueries = (form.textract_queries || []).map((q, idx) => {
+      if (idx === index) {
+        return { ...q, is_active: !q.is_active }
+      }
+      return q
+    })
+    update('textract_queries', nextQueries)
   }
 
   function handleSave() {
@@ -145,6 +180,33 @@ function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) 
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </div>
+
+          {form.endpoint_type === 'textract' && (
+            <div className="flex border-b border-slate-800">
+              <button
+                type="button"
+                onClick={() => setActiveTab('config')}
+                className={`flex-1 py-2 text-xs font-mono font-medium transition-colors border-b-2 ${
+                  activeTab === 'config'
+                    ? 'border-violet-500 text-violet-400 font-bold'
+                    : 'border-transparent text-slate-500 hover:text-slate-400'
+                }`}
+              >
+                Configuração
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('queries')}
+                className={`flex-1 py-2 text-xs font-mono font-medium transition-colors border-b-2 ${
+                  activeTab === 'queries'
+                    ? 'border-violet-500 text-violet-400 font-bold'
+                    : 'border-transparent text-slate-500 hover:text-slate-400'
+                }`}
+              >
+                Queries Textract ({form.textract_queries?.length || 0})
+              </button>
+            </div>
+          )}
 
           {form.endpoint_type === 'bedrock' ? (
             <>
@@ -289,18 +351,126 @@ function EditModal({ endpoint, modelosDaAws, onClose, onSave }: EditModalProps) 
               </div>
             </>
           ) : (
-            <div className="p-4 bg-violet-950/20 border border-violet-500/20 rounded-lg space-y-2">
-              <h4 className="text-sm font-semibold text-violet-300 flex items-center gap-1.5">
-                <FileText size={16} /> Extração Direta (Textract) Ativa
-              </h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Este endpoint está configurado no modo de OCR síncrono. Clientes podem enviar arquivos (PDF, Imagens ou Word) diretamente para obter tabelas e textos estruturados em JSON ou CSV na mesma hora.
-              </p>
-              <p className="text-xs text-slate-500 font-mono">
-                Rota de integração: POST /v1/analyze/{form.slug}/direct?format=json
-              </p>
-            </div>
+            <>
+              {activeTab === 'config' && (
+                <div className="p-4 bg-violet-950/20 border border-violet-500/20 rounded-lg space-y-2">
+                  <h4 className="text-sm font-semibold text-violet-300 flex items-center gap-1.5">
+                    <FileText size={16} /> Extração Direta (Textract) Ativa
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Este endpoint está configurado no modo de OCR síncrono. Clientes podem enviar arquivos (PDF, Imagens ou Word) diretamente para obter tabelas e textos estruturados em JSON ou CSV na mesma hora.
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Rota de integração: POST /v1/analyze/{form.slug}/direct?format=json
+                  </p>
+                </div>
+              )}
+
+              {activeTab === 'queries' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
+                    <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider font-mono">
+                      O que são Queries do Textract?
+                    </h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      As Queries permitem que você faça perguntas em linguagem natural diretamente para o AWS Textract extrair dados específicos (como "Qual é o valor total?", "Qual é o CNPJ?").
+                      A resposta é retornada de forma altamente precisa junto com o JSON, CSV e PDF.
+                    </p>
+                  </div>
+
+                  {/* Lista de Queries */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-mono text-slate-500 uppercase tracking-wider block">Queries Configuradas</label>
+                    {(!form.textract_queries || form.textract_queries.length === 0) ? (
+                      <p className="text-xs text-slate-600 font-mono py-2 italic">Nenhuma query configurada para este endpoint. O Textract retornará apenas o resultado bruto (tabelas e texto livre).</p>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {form.textract_queries.map((q, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2.5 rounded bg-slate-950 border border-slate-800 text-xs">
+                            <div className="space-y-0.5 flex-1 min-w-0 pr-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-violet-400 font-semibold">{q.query_alias}</span>
+                                <span className="text-[10px] text-slate-600 font-mono">#{idx + 1}</span>
+                              </div>
+                              <p className="text-slate-400 truncate font-mono">{q.query_text}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => toggleQueryActive(idx)}
+                                className={`p-1 rounded transition-colors ${q.is_active ? 'text-emerald-400 hover:text-emerald-300' : 'text-slate-600 hover:text-slate-500'}`}
+                                title={q.is_active ? 'Ativa' : 'Inativa'}
+                              >
+                                {q.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeQuery(idx)}
+                                className="p-1 text-slate-600 hover:text-rose-450 transition-colors"
+                                title="Remover query"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Form de Adicionar */}
+                  <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg space-y-3">
+                    <h5 className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">Nova Query</h5>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-1 space-y-1">
+                        <input
+                          type="text"
+                          placeholder="Alias (ex: CNPJ)"
+                          value={newQueryAlias}
+                          onChange={e => setNewQueryAlias(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-700 font-mono focus:outline-none focus:border-violet-500/50"
+                        />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <input
+                          type="text"
+                          placeholder="Query (ex: Qual o CNPJ do emitente?)"
+                          value={newQueryText}
+                          onChange={e => setNewQueryText(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-700 font-mono focus:outline-none focus:border-violet-500/50"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addQuery}
+                      disabled={!newQueryAlias.trim() || !newQueryText.trim()}
+                      className="w-full py-1.5 text-xs font-semibold bg-violet-600 disabled:opacity-40 disabled:hover:bg-violet-600 hover:bg-violet-500 text-slate-100 rounded transition-colors font-mono"
+                    >
+                      + Adicionar Query
+                    </button>
+                  </div>
+
+                  {/* Live JSON Preview */}
+                  {form.textract_queries && form.textract_queries.filter(q => q.is_active).length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-mono text-slate-600 uppercase tracking-wider block">Payload de Integração (QueriesConfig)</label>
+                      <pre className="p-2.5 bg-slate-950 border border-slate-850 rounded text-[10px] text-violet-400/80 font-mono overflow-x-auto max-h-24">
+                        {JSON.stringify({
+                          QueriesConfig: {
+                            Queries: form.textract_queries
+                              .filter(q => q.is_active)
+                              .map(q => ({ Text: q.query_text, Alias: q.query_alias }))
+                          }
+                        }, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
+
 
           {/* Status toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800">
@@ -441,6 +611,7 @@ export function EndpointsPage() {
       endpoint_type: 'bedrock',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      textract_queries: [],
       current_prompt: {
         id: crypto.randomUUID ? crypto.randomUUID() : newId + '-p', // Use o mesmo fallback aqui
         endpoint_id: '',

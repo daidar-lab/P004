@@ -33,10 +33,23 @@ export class TextractService {
     await s3Client.send(command);
   }
 
+  private static normalizeQueryString(str: string): string {
+    if (!str) return "";
+    return str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\x00-\x7F]/g, "");
+  }
+
   /**
-   * Starts an asynchronous Textract document analysis job (with optional custom feature types).
+   * Starts an asynchronous Textract document analysis job (with optional custom feature types and queries).
    */
-  public static async startAnalysis(s3Bucket: string, s3Key: string, features: string[] = ["LAYOUT"]): Promise<string> {
+  public static async startAnalysis(
+    s3Bucket: string,
+    s3Key: string,
+    features: string[] = ["LAYOUT"],
+    queries?: { Text: string; Alias?: string }[]
+  ): Promise<string> {
     const snsTopicArn = process.env.AWS_SNS_TOPIC_ARN;
     const roleArn = process.env.AWS_TEXTRACT_ROLE_ARN;
 
@@ -49,6 +62,12 @@ export class TextractService {
         },
       },
       FeatureTypes: features as any,
+      QueriesConfig: queries && queries.length > 0 ? {
+        Queries: queries.map(q => ({
+          Text: TextractService.normalizeQueryString(q.Text),
+          Alias: q.Alias ? TextractService.normalizeQueryString(q.Alias) : undefined
+        }))
+      } : undefined,
       NotificationChannel: snsTopicArn && roleArn ? {
         SNSTopicArn: snsTopicArn,
         RoleArn: roleArn,

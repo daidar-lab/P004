@@ -18,6 +18,7 @@ export interface TextractParsedData {
   tables: string[][][];
   keyValuePairs: Record<string, string>;
   rawBlocks: TextractGeometricLine[];
+  queryResults: Record<string, string>;
 }
 
 export function parseTextractBlocks(blocks: Block[]): TextractParsedData {
@@ -25,6 +26,7 @@ export function parseTextractBlocks(blocks: Block[]): TextractParsedData {
   const keyValuePairs: Record<string, string> = {};
   const tables: string[][][] = [];
   const rawBlocks: TextractGeometricLine[] = [];
+  const queryResults: Record<string, string> = {};
 
   // Map para buscar blocos por ID
   const blockMap = new Map<string, Block>();
@@ -149,11 +151,38 @@ export function parseTextractBlocks(blocks: Block[]): TextractParsedData {
     }
   }
 
+  // Extração de Queries
+  for (const block of blocks) {
+    if (block.BlockType === "QUERY" && block.Query) {
+      const alias = block.Query.Alias || "";
+      const queryText = block.Query.Text || "";
+      const key = alias || queryText;
+      if (!key) continue;
+
+      const answerIds = block.Relationships?.find(r => r.Type === "ANSWER")?.Ids || [];
+      const answers: string[] = [];
+      for (const answerId of answerIds) {
+        const answerBlock = blockMap.get(answerId);
+        if (answerBlock && answerBlock.BlockType === "QUERY_RESULT") {
+          let text = answerBlock.Text || "";
+          if (!text && answerBlock.Relationships) {
+            text = getRelationshipText(answerBlock.Relationships.find(r => r.Type === "CHILD")?.Ids);
+          }
+          if (text) {
+            answers.push(text);
+          }
+        }
+      }
+      queryResults[key] = answers.join("; ");
+    }
+  }
+
   return {
     text: textLines.join("\n"),
     tables,
     keyValuePairs,
     rawBlocks,
+    queryResults,
   };
 }
 
@@ -166,7 +195,16 @@ export function convertToCsv(parsedData: TextractParsedData): string {
     return `"${cleaned}"`;
   };
 
-  // Key-Value Pairs como seção inicial do CSV
+  // Queries (Consultas) como seção inicial do CSV
+  if (parsedData.queryResults && Object.keys(parsedData.queryResults).length > 0) {
+    csvContent += `Query/Alias;Resposta\n`;
+    for (const [query, answer] of Object.entries(parsedData.queryResults)) {
+      csvContent += `${sanitizeCell(query)};${sanitizeCell(answer)}\n`;
+    }
+    csvContent += "\n";
+  }
+
+  // Key-Value Pairs como seção seguinte do CSV
   if (Object.keys(parsedData.keyValuePairs).length > 0) {
     csvContent += `Chave;Valor\n`;
     for (const [key, value] of Object.entries(parsedData.keyValuePairs)) {

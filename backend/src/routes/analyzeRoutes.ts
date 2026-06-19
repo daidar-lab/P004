@@ -121,13 +121,27 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
       return res.status(400).json({ success: false, error: 'Este endpoint não está configurado para suportar extração direta de documentos (Textract).' });
     }
 
+    // Buscar as queries ativas do endpoint
+    const queriesQuery = `
+      SELECT query_text, query_alias
+      FROM synapse.textract_queries
+      WHERE endpoint_id = $1 AND is_active = TRUE
+      ORDER BY sort_order ASC;
+    `;
+    const queriesResult = await db.query(queriesQuery, [endpoint_id]);
+    const endpointQueries = queriesResult.rows.map(row => ({
+      Text: row.query_text,
+      Alias: row.query_alias
+    }));
+
     const fileMime = req.file.mimetype;
     const originalName = req.file.originalname.toLowerCase();
     let parsedResult = {
       text: "",
       tables: [] as string[][][],
       keyValuePairs: {} as Record<string, string>,
-      rawBlocks: [] as any[]
+      rawBlocks: [] as any[],
+      queryResults: {} as Record<string, string>
     };
 
     const isWord = fileMime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || originalName.endsWith('.docx');
@@ -153,7 +167,12 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
         await TextractService.uploadToS3(tempBucket, tempKey, req.file.buffer, fileMime);
 
         // 3. Inicia análise assíncrona
-        const jobId = await TextractService.startAnalysis(tempBucket, tempKey, ["TABLES", "FORMS", "LAYOUT"]);
+        // NOTA: AWS Textract não suporta LAYOUT combinado com QUERIES no mesmo job.
+        // Quando há queries configuradas, usamos TABLES + FORMS + QUERIES (sem LAYOUT).
+        const features = endpointQueries.length > 0
+          ? ["TABLES", "FORMS", "QUERIES"]
+          : ["TABLES", "FORMS", "LAYOUT"];
+        const jobId = await TextractService.startAnalysis(tempBucket, tempKey, features, endpointQueries);
 
         // 4. Polling síncrono interno com limite de timeout
         let jobStatus = 'IN_PROGRESS';
@@ -251,7 +270,7 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
         if (doc.y + neededHeight > pageBottom && !isSwappingPage) {
           isSwappingPage = true;
           doc.addPage();
-          doc.y = 30;
+          doc.y = 30; // Margem superior da nova página
           isSwappingPage = false;
           return true;
         }
@@ -264,8 +283,11 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
         const available = pageBottom - doc.y;
         if (available > pixels) {
           doc.y += pixels;
+        } else {
+          // Se o espaço seguro não couber na página atual, força a criação de uma página nova
+          // em vez de deixar o cursor colado na borda inferior ou gerar quebra incorreta depois
+          checkPageBounds(pixels);
         }
-        // Se não couber, simplesmente não move (evita criação de página em branco)
       };
 
       // --- CABEÇALHO GENÉRICO DO RELATÓRIO ---
@@ -282,28 +304,87 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
       doc.moveTo(START_X, doc.y).lineTo(812, doc.y).strokeColor('#e0e0e0').lineWidth(1).stroke();
       safeSpace(10);
 
-      // --- SEÇÃO 1: TABELAS (renderiza exatamente como o Textract retornou) ---
+      // --- SEÇÃO 0: CONSULTAS (QUERIES NATIVAS) ---
+      if (parsedResult.queryResults && Object.keys(parsedResult.queryResults).length > 0) {
+        checkPageBounds(30);
+        doc.fillColor('#1a73e8').font('Helvetica-Bold').fontSize(11).text('Consultas Customizadas (Queries)', START_X, doc.y);
+        safeSpace(8);
+
+        const queryColWidths = [250, PAGE_WIDTH - 250];
+
+        // Cabeçalho da seção Queries
+        const queryHeaderY = doc.y;
+        doc.rect(START_X, queryHeaderY, PAGE_WIDTH, 18).fill('#f1f3f4');
+        ['Query / Campo', 'Resultado'].forEach((label, idx) => {
+          const cellX = START_X + queryColWidths.slice(0, idx).reduce((a, b) => a + b, 0);
+          doc.rect(cellX, queryHeaderY, queryColWidths[idx], 18).strokeColor('#cccccc').lineWidth(0.4).stroke();
+          doc.fillColor('#1a73e8').font('Helvetica-Bold').fontSize(8).text(label, cellX + 4, queryHeaderY + 5, { width: queryColWidths[idx] - 8 });
+        });
+        doc.y = queryHeaderY + 18;
+
+        Object.entries(parsedResult.queryResults).forEach(([query, answer], qIdx) => {
+          const lineText = [query, answer];
+          let maxH = 10;
+          doc.fontSize(7);
+          lineText.forEach((t, i) => {
+            const h = doc.heightOfString(t, { width: queryColWidths[i] - 8 });
+            if (h > maxH) maxH = h;
+          });
+          const qRowH = maxH + 6;
+
+          checkPageBounds(qRowH);
+          const qY = doc.y;
+
+          if (qIdx % 2 === 0) {
+            doc.rect(START_X, qY, PAGE_WIDTH, qRowH).fill('#f7f8fa');
+          }
+
+          lineText.forEach((t, i) => {
+            const cellX = START_X + queryColWidths.slice(0, i).reduce((a, b) => a + b, 0);
+            doc.rect(cellX, qY, queryColWidths[i], qRowH).strokeColor('#d0d0d0').lineWidth(0.4).stroke();
+            doc.fillColor('#202124').font('Helvetica').fontSize(7).text(t, cellX + 4, qY + 3, { width: queryColWidths[i] - 8, ellipsis: true });
+          });
+
+          doc.y = qY + qRowH;
+        });
+
+        safeSpace(10);
+      }
+
+      // --- SEÇÃO 1: TABELAS ---
+      // Mescla tabelas consecutivas com mesmo número de colunas para evitar a
+      // quebra artificial que o Textract faz por página do PDF original.
+      const mergedTables: string[][][] = [];
       if (parsedResult.tables && parsedResult.tables.length > 0) {
-        parsedResult.tables.forEach((table, tableIndex) => {
+        for (const rawTable of parsedResult.tables) {
+          if (!rawTable || rawTable.length === 0) continue;
+          const numCols = rawTable[0].length;
+          const last = mergedTables[mergedTables.length - 1];
+          // Se a tabela anterior tem o mesmo número de colunas → é continuação, une
+          if (last && last[0].length === numCols) {
+            last.push(...rawTable);
+          } else {
+            mergedTables.push([...rawTable]);
+          }
+        }
+      }
+
+      if (mergedTables.length > 0) {
+        mergedTables.forEach((table, tableIndex) => {
           if (!table || table.length === 0) return;
 
           const numCols = table[0].length || 1;
-          // Largura dinâmica: distribui igualmente entre as colunas
           const colWidth = Math.floor(PAGE_WIDTH / numCols);
           const colWidths = Array(numCols).fill(colWidth);
-          // Ajusta última coluna para compensar arredondamentos
           colWidths[numCols - 1] = PAGE_WIDTH - colWidth * (numCols - 1);
 
-          // Título da tabela (quando há mais de uma)
-          if (parsedResult.tables.length > 1) {
+          if (mergedTables.length > 1) {
             checkPageBounds(18);
             doc.fillColor('#1a73e8').font('Helvetica-Bold').fontSize(10).text(`Tabela ${tableIndex + 1}`, START_X, doc.y);
             safeSpace(6);
           }
 
-          // Renderiza cada linha da tabela — todas as linhas são dados, sem tratamento especial de cabeçalho
           table.forEach((row, rowIndex) => {
-            // Calcula a altura máxima necessária para a linha
             let maxCellHeight = 10;
             doc.fontSize(7);
             row.forEach((cell, cIdx) => {
@@ -316,7 +397,6 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
 
             const rowY = doc.y;
 
-            // Linhas alternadas para facilitar leitura
             if (rowIndex % 2 === 0) {
               doc.rect(START_X, rowY, PAGE_WIDTH, rowHeight).fill('#f7f8fa');
             }
@@ -408,17 +488,7 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
       }
 
       // --- NUMERAÇÃO DE PÁGINAS ---
-      const range = doc.bufferedPageRange();
-      for (let i = range.start; i < range.start + range.count; i++) {
-        doc.switchToPage(i);
-        doc.fillColor('#999999').font('Helvetica').fontSize(8);
-        doc.text(
-          `Página ${i + 1} de ${range.count}`,
-          30,
-          doc.page.height - 20,
-          { align: 'center', width: PAGE_WIDTH }
-        );
-      }
+      // Removida a paginação conforme solicitado para evitar comportamento de duplicação do PDFKit.
 
       doc.end();
       return;

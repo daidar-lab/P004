@@ -143,6 +143,24 @@ ALTER TABLE synapse.endpoints
 ALTER TABLE synapse.endpoints
     ADD COLUMN IF NOT EXISTS is_multimodal bool DEFAULT false NULL;
 
+-- endpoint_type foi adicionado em versão posterior
+ALTER TABLE synapse.endpoints
+    ADD COLUMN IF NOT EXISTS endpoint_type varchar(50) DEFAULT 'bedrock' NULL;
+
+-- Tabela textract_queries
+CREATE TABLE IF NOT EXISTS synapse.textract_queries (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    endpoint_id uuid NOT NULL,
+    query_text text NOT NULL,
+    query_alias varchar(100) NOT NULL,
+    sort_order int4 DEFAULT 0 NOT NULL,
+    is_active bool DEFAULT true NOT NULL,
+    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    updated_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    CONSTRAINT textract_queries_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_tq_endpoint FOREIGN KEY (endpoint_id) REFERENCES synapse.endpoints(id) ON DELETE CASCADE
+);
+
 -- =============================================================================
 -- FIM DO MIGRATE.SQL
 -- =============================================================================

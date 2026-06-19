@@ -14,6 +14,15 @@ export type AwsModelId =
   | (string & {});
 
 
+export interface TextractQuery {
+  id?: string;
+  endpoint_id?: string;
+  query_text: string;
+  query_alias: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface Endpoint {
   id: string;
   slug: string;
@@ -27,6 +36,7 @@ export interface Endpoint {
   created_at: string;
   updated_at: string;
   current_prompt?: PromptVersion;
+  textract_queries?: TextractQuery[];
 }
 
 export interface PromptVersion {

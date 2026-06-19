@@ -67,7 +67,22 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
     const query = `
       SELECT 
         e.id, e.slug, e.name, e.aws_model_id, e.temperature, e.is_active, e.is_multimodal, e.supports_textract, e.endpoint_type, e.created_at, e.updated_at,
-        p.id as prompt_id, p.system_prompt, p.user_prompt_template, p.version, p.is_current, p.created_by, p.created_at as prompt_created_at
+        p.id as prompt_id, p.system_prompt, p.user_prompt_template, p.version, p.is_current, p.created_by, p.created_at as prompt_created_at,
+        COALESCE(
+          (
+            SELECT json_agg(json_build_object(
+              'id', q.id,
+              'endpoint_id', q.endpoint_id,
+              'query_text', q.query_text,
+              'query_alias', q.query_alias,
+              'sort_order', q.sort_order,
+              'is_active', q.is_active
+            ) ORDER BY q.sort_order ASC)
+            FROM synapse.textract_queries q
+            WHERE q.endpoint_id = e.id
+          ),
+          '[]'::json
+        ) as textract_queries
       FROM synapse.endpoints e
       LEFT JOIN synapse.prompts_history p ON p.endpoint_id = e.id AND p.is_current = TRUE
       ORDER BY e.created_at DESC;
@@ -88,6 +103,7 @@ endpointsRouter.get('/', async (req: Request, res: Response) => {
         endpoint_type: row.endpoint_type || 'bedrock',
         created_at: row.created_at,
         updated_at: row.updated_at,
+        textract_queries: row.textract_queries || [],
         current_prompt: row.prompt_id ? {
           id: row.prompt_id,
           endpoint_id: row.id,
@@ -113,7 +129,7 @@ endpointsRouter.post('/', async (req: Request, res: Response) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type, current_prompt } = req.body;
+    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type, current_prompt, textract_queries } = req.body;
 
     const insertEndpoint = `
       INSERT INTO synapse.endpoints (slug, name, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type)
@@ -128,6 +144,16 @@ endpointsRouter.post('/', async (req: Request, res: Response) => {
         VALUES ($1, $2, $3, 1, TRUE) RETURNING id, version, created_at
       `;
       await client.query(insertPrompt, [newId, current_prompt.system_prompt, current_prompt.user_prompt_template || null]);
+    }
+
+    if (textract_queries && Array.isArray(textract_queries)) {
+      for (const tq of textract_queries) {
+        const insertTq = `
+          INSERT INTO synapse.textract_queries (endpoint_id, query_text, query_alias, sort_order, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+        `;
+        await client.query(insertTq, [newId, tq.query_text, tq.query_alias, tq.sort_order || 0, tq.is_active !== false]);
+      }
     }
 
     await client.query('COMMIT');
@@ -150,7 +176,7 @@ endpointsRouter.put('/:id', async (req: Request, res: Response) => {
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type, current_prompt } = req.body;
+    const { name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract, endpoint_type, current_prompt, textract_queries } = req.body;
 
     // 1. Atualizar dados básicos
     const updateEndpoint = `
@@ -159,6 +185,18 @@ endpointsRouter.put('/:id', async (req: Request, res: Response) => {
       WHERE id = $9
     `;
     await client.query(updateEndpoint, [name, slug, aws_model_id, temperature, is_active, is_multimodal, supports_textract || false, endpoint_type || 'bedrock', id]);
+
+    // 1.2. Atualizar queries se enviadas
+    if (textract_queries !== undefined && Array.isArray(textract_queries)) {
+      await client.query('DELETE FROM synapse.textract_queries WHERE endpoint_id = $1', [id]);
+      for (const tq of textract_queries) {
+        const insertTq = `
+          INSERT INTO synapse.textract_queries (endpoint_id, query_text, query_alias, sort_order, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+        `;
+        await client.query(insertTq, [id, tq.query_text, tq.query_alias, tq.sort_order || 0, tq.is_active !== false]);
+      }
+    }
 
     // 2. Lidar com o versionamento do prompt (se enviado)
     if (current_prompt) {

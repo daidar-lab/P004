@@ -5,10 +5,10 @@ import { EndpointsPage } from './pages/EndpointsPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { UsersPage } from './pages/UsersPage';
 import { LoginPage } from './pages/LoginPage';
-import { Activity, FileText } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { RequestLogsPage } from './pages/RequestLogsPage';
 import { DocumentJobsPage } from './pages/DocumentJobsPage';
-
+ 
 // Monkey patch global fetch para injetar o JWT automaticamente
 const apiUrl = import.meta.env.VITE_API_URL;
 const originalFetch = globalThis.fetch;

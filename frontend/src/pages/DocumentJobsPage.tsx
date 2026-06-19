@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   FileText, Plus, RefreshCw, Clock, CheckCircle2, 
-  XCircle, AlertTriangle, Eye, ArrowUpRight, Search, X 
+  XCircle, AlertTriangle, Eye, Search, X 
 } from 'lucide-react';
 
 interface DocumentJob {

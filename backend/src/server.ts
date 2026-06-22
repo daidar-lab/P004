@@ -28,7 +28,8 @@ app.use(cors({
 }));
 
 app.disable('x-powered-by');
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Definição da porta (Lê a porta da AWS ou usa a 3334 como padrão local)
 const PORT = process.env.PORT || 3334;
@@ -66,10 +67,10 @@ const server = app.listen(PORT, () => {
 // 🛠️ BLINDAGEM DE TIMEOUTS PARA PROCESSAMENTO SÍNCRONO DO TEXTRACT
 // Define o limite de tempo limite global para 5 minutos (300000 ms) 
 // Isso garante que os seus 160 segundos de polling rodem sem interrupções do Node.
-server.timeout = 300000; 
+server.timeout = 300000;
 
 // Define o tempo limite para o recebimento dos headers HTTP
-server.headersTimeout = 305000; 
+server.headersTimeout = 305000;
 
 // Garante que a conexão TCP fique aberta tempo suficiente para streams e arquivos pesados
 server.keepAliveTimeout = 300000;

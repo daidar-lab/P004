@@ -153,7 +153,7 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
     } else {
       // Processa PDF/Imagem usando fluxo assíncrono interno via S3 temporário
       const tempBucket = process.env.AWS_TEMP_S3_BUCKET || process.env.AWS_S3_BUCKET;
-      
+
       if (!tempBucket) {
         return res.status(500).json({ success: false, error: 'A variável de ambiente AWS_TEMP_S3_BUCKET não está configurada no servidor.' });
       }
@@ -192,14 +192,20 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
 
           await new Promise(resolve => setTimeout(resolve, pollingIntervalMs));
 
-          const statusRes = await textractClient.send(new GetDocumentAnalysisCommand({ JobId: jobId }));
+          const statusRes = await textractClient.send(
+            new GetDocumentAnalysisCommand({ JobId: jobId })
+          );
+
           jobStatus = statusRes.JobStatus || 'IN_PROGRESS';
 
           console.log(`[Textract] Status: ${jobStatus} | Elapsed: ${Math.round(elapsedMs / 1000)}s`);
 
           if (jobStatus === 'SUCCEEDED') {
-            // Obtém todos os blocos paginados
-            blocks = await TextractService.getFullBlocksList(jobId);
+            // ✅ ajuste aqui
+            const result = await TextractService.getBlocksAndText(jobId);
+            blocks = result.blocks;
+
+
             break;
           }
 
@@ -235,7 +241,7 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
     // ==========================================
     if (format === 'csv') {
       const csvData = convertToCsv(parsedResult);
-      
+
       // \ufeff avisa o Excel para abrir em UTF-8 direto, corrigindo a acentuação (João)
       const bomCsvData = '\ufeff' + csvData;
 
@@ -244,7 +250,7 @@ analyzeRouter.post('/:slug/direct', upload.single('file'), async (req: Authentic
       return res.status(200).send(bomCsvData);
     }
 
-// ==========================================
+    // ==========================================
     // TRATAMENTO DE EXPORTAÇÃO: PDF (Renderização Dinâmica via Textract)
     // ==========================================
     if (format === 'pdf') {
@@ -571,7 +577,7 @@ analyzeRouter.post('/:slug', async (req: AuthenticatedRequest, res: Response) =>
 
   } catch (error: any) {
     console.error(`[ERRO NA ROTA DINÂMICA /:${slug}]:`, error.message);
-    
+
     // Tratamento de erros HTTP baseado na resposta do serviço
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({

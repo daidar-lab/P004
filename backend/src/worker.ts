@@ -1,7 +1,7 @@
-import { 
-  ReceiveMessageCommand, 
-  DeleteMessageCommand, 
-  Message 
+import {
+  ReceiveMessageCommand,
+  DeleteMessageCommand,
+  Message
 } from "@aws-sdk/client-sqs";
 import { ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { sqsClient } from "./config/sqs";
@@ -99,7 +99,7 @@ async function processMessage(message: Message) {
   try {
     if (!message.Body) throw new Error("Mensagem sem Body");
     bodyJson = JSON.parse(message.Body);
-    
+
     // In SQS-SNS subscription, the SNS notification is in bodyJson.Message
     if (bodyJson.Message) {
       snsMsg = JSON.parse(bodyJson.Message);
@@ -173,8 +173,8 @@ async function processMessage(message: Message) {
 
     // STEP 6 — PAGINAÇÃO TEXTRACT
     console.log(`[WORKER][STEP 6] Obtendo resultado paginado do Textract para Job ${jobId}...`);
-    const { rawText, totalLines } = await TextractService.getConsolidatedText(jobId);
-    
+    const { rawText, totalLines } = await TextractService.getBlocksAndText(jobId);
+
     // GATE: IF blocks.length == 0 ➔ FAIL
     if (totalLines === 0 || !rawText || rawText.trim() === "") {
       throw new Error("TEXTRACT_NO_TEXT_EXTRACTED");
@@ -221,7 +221,7 @@ async function processMessage(message: Message) {
       : `Análise do seguinte documento:\n\n${normalizedText}`;
 
     console.log(`[WORKER][STEP 9] Invocando Bedrock (${aws_model_id})...`);
-    
+
     const command = new ConverseCommand({
       modelId: aws_model_id,
       messages: [
@@ -282,7 +282,7 @@ async function processMessage(message: Message) {
 
   } catch (err: any) {
     console.error(`[WORKER][GLOBAL_FAIL] Erro no processamento do Job ${jobId}:`, err.message);
-    
+
     // STEP FAIL (GLOBAL)
     await markJobAsFailed(jobId || "UNKNOWN", err.message || "UNKNOWN_ERROR");
     await deleteSQSMessage(receiptHandle);
@@ -292,9 +292,9 @@ async function processMessage(message: Message) {
       status: "FAILED",
       error: {
         code: err.message || "UNKNOWN_ERROR",
-        stage: err.message?.includes("TEXTRACT") ? "TEXTRACT" : 
-               err.message?.includes("BEDROCK") ? "BEDROCK" :
-               err.message?.includes("DB") ? "DB" : "VALIDATION",
+        stage: err.message?.includes("TEXTRACT") ? "TEXTRACT" :
+          err.message?.includes("BEDROCK") ? "BEDROCK" :
+            err.message?.includes("DB") ? "DB" : "VALIDATION",
         retryable: false
       }
     }, null, 2));
@@ -311,7 +311,7 @@ async function startWorker() {
   }
 
   console.log(`[WORKER] SQS Poller ativo na fila: ${QUEUE_URL}`);
-  
+
   while (true) {
     try {
       // STEP 0 — POLLING
